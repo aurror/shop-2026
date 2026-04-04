@@ -158,29 +158,34 @@ export default async function HomePage() {
   return (
     <>
       {/* Hero */}
-      <section className="border-b border-neutral-100 bg-neutral-50">
-        <div className="mx-auto flex max-w-7xl flex-col items-center px-4 py-24 text-center sm:px-6 sm:py-32 lg:px-8 lg:py-40">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">
+      <section className="relative overflow-hidden border-b border-neutral-100">
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/hero.avif')" }}
+        />
+        <div className="absolute inset-0 bg-black/60" />
+        <div className="relative mx-auto flex max-w-7xl flex-col items-center px-4 py-24 text-center sm:px-6 sm:py-32 lg:px-8 lg:py-40">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white">
             3DPrintIt
           </p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-black sm:text-5xl lg:text-6xl">
+          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl [text-shadow:0_2px_12px_rgba(0,0,0,0.4)]">
             Modelleisenbahn &amp; 3D-Druck
           </h1>
-          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-neutral-500">
+          <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-white [text-shadow:0_1px_6px_rgba(0,0,0,0.5)]">
             Hochwertige Modellbauzubehörteile, präzise gefertigt mit modernster
             3D-Drucktechnik. Für Sammler und Modellbauer.
           </p>
           <div className="mt-10 flex items-center gap-4">
             <Link
               href="/products"
-              className="inline-flex h-12 items-center justify-center rounded-full bg-black px-8 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+              className="inline-flex h-12 items-center justify-center rounded-full bg-white px-8 text-sm font-medium text-black transition-colors hover:bg-neutral-100"
             >
               Alle Produkte
             </Link>
             {allCategories.length > 0 && (
               <Link
                 href={`/kategorie/${allCategories[0].slug}`}
-                className="inline-flex h-12 items-center justify-center rounded-full border border-neutral-300 bg-white px-8 text-sm font-medium text-black transition-colors hover:bg-neutral-50"
+                className="inline-flex h-12 items-center justify-center rounded-full border border-white/40 bg-white/10 px-8 text-sm font-medium text-white backdrop-blur-sm transition-colors hover:bg-white/20"
               >
                 Kategorien entdecken
               </Link>
