@@ -1,6 +1,6 @@
 #!/bin/bash
 # Auto-deploy script — run by cron at night or via admin dashboard
-set -e
+set -eo pipefail
 
 FORCE=0
 for arg in "$@"; do
@@ -12,13 +12,15 @@ LOG_FILE="$HOME/shop-deploy.log"
 APP_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 if [ "$FORCE" -eq 0 ] && [ ! -f "$FLAG_FILE" ]; then
-  echo $HOME
   echo "No deploy pending. Exiting."
   exit 0
 fi
 
 # Fresh log each run
 > "$LOG_FILE"
+
+# Trap errors and log them
+trap 'echo "=== Deploy FAILED at step above (exit $?) ===" | tee -a "$LOG_FILE"' ERR
 
 echo "=== Deploy started at $(date) ===" | tee -a "$LOG_FILE"
 
@@ -34,7 +36,7 @@ git pull origin main 2>&1 | tee -a "$LOG_FILE"
 ssh-agent -k >> /dev/null 2>&1
 
 echo "[3/5] Installing dependencies..." | tee -a "$LOG_FILE"
-npm ci --prefer-offline 2>&1 | tee -a "$LOG_FILE"
+npm install --prefer-offline 2>&1 | tee -a "$LOG_FILE"
 
 echo "[4/5] Building..." | tee -a "$LOG_FILE"
 npm run build 2>&1 | tee -a "$LOG_FILE"
@@ -50,4 +52,3 @@ pm2 restart shop 2>&1 | tee -a "$LOG_FILE" || pm2 start .next/standalone/server.
 rm -f "$FLAG_FILE"
 
 echo "=== Deploy finished at $(date) ===" | tee -a "$LOG_FILE"
-#test
