@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useLocale } from "@/components/admin/LocaleContext";
 import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
@@ -674,6 +674,8 @@ function RolesTabContent({ locale }: { locale: string }) {
 }
 
 // Updates tab
+
+// Updates tab — check for new commits, apply deploy, stream log
 function UpdatesTabContent({ locale }: { locale: string }) {
   const [status, setStatus] = useState<{
     updateAvailable: boolean;
@@ -684,8 +686,40 @@ function UpdatesTabContent({ locale }: { locale: string }) {
   } | null>(null);
   const [checking, setChecking] = useState(false);
   const [deploying, setDeploying] = useState(false);
-  const [deployMessage, setDeployMessage] = useState("");
+  const [logLines, setLogLines] = useState<string[]>([]);
+  const [deployDone, setDeployDone] = useState(false);
   const [error, setError] = useState("");
+  const logRef = useRef<HTMLDivElement>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  function stopPolling() {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  }
+
+  async function pollLog() {
+    try {
+      const res = await fetch("/api/admin/updates/log");
+      const data = await res.json();
+      setLogLines(data.lines || []);
+      if (data.finished) {
+        setDeploying(false);
+        setDeployDone(true);
+        stopPolling();
+      }
+    } catch {}
+  }
+
+  // Auto-scroll log
+  useEffect(() => {
+    if (logRef.current) {
+      logRef.current.scrollTop = logRef.current.scrollHeight;
+    }
+  }, [logLines]);
+
+  useEffect(() => () => stopPolling(), []);
 
   async function checkForUpdates() {
     setChecking(true);
@@ -693,8 +727,7 @@ function UpdatesTabContent({ locale }: { locale: string }) {
     try {
       const res = await fetch("/api/admin/updates");
       if (!res.ok) throw new Error();
-      const data = await res.json();
-      setStatus(data);
+      setStatus(await res.json());
     } catch {
       setError(locale === "en" ? "Could not check for updates." : "Konnte nicht nach Updates suchen.");
     } finally {
@@ -704,22 +737,32 @@ function UpdatesTabContent({ locale }: { locale: string }) {
 
   async function applyUpdate() {
     setDeploying(true);
-    setDeployMessage("");
+    setDeployDone(false);
+    setLogLines([]);
     setError("");
     try {
       const res = await fetch("/api/admin/updates", { method: "POST" });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error);
-      setDeployMessage(
-        locale === "en"
-          ? "Deploy started. The server will update and restart. This page may briefly become unavailable."
-          : "Deploy gestartet. Der Server aktualisiert sich und startet neu. Die Seite kann kurz nicht verfügbar sein."
-      );
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error);
+      }
+      // Start polling log every 2s
+      pollRef.current = setInterval(pollLog, 2000);
+      // Initial poll immediately
+      await pollLog();
     } catch (e: any) {
       setError(e.message || (locale === "en" ? "Deploy failed." : "Deploy fehlgeschlagen."));
-    } finally {
       setDeploying(false);
     }
+  }
+
+  function lineColor(line: string) {
+    if (line.includes("error") || line.includes("Error")) return "text-red-400";
+    if (line.includes("warn") || line.includes("Warn")) return "text-yellow-400";
+    if (line.includes("finished")) return "text-green-400";
+    if (line.match(/^\[(\d)\/5\]/)) return "text-blue-300 font-semibold";
+    if (line.startsWith("===")) return "text-neutral-300 font-semibold";
+    return "text-neutral-400";
   }
 
   return (
@@ -727,14 +770,15 @@ function UpdatesTabContent({ locale }: { locale: string }) {
       <h2 className="mb-1 text-lg font-semibold text-neutral-900">Updates</h2>
       <p className="mb-6 text-sm text-neutral-500">
         {locale === "en"
-          ? "Check if a new version is available on the main branch and apply it."
-          : "Prüfen ob eine neue Version auf dem main-Branch verfügbar ist und diese einspielen."}
+          ? "Check for new versions on the main branch and deploy them."
+          : "Neue Versionen auf dem main-Branch prüfen und einspielen."}
       </p>
 
+      {/* Check button */}
       <button
         type="button"
         onClick={checkForUpdates}
-        disabled={checking}
+        disabled={checking || deploying}
         className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-50"
       >
         {checking ? (
@@ -747,34 +791,35 @@ function UpdatesTabContent({ locale }: { locale: string }) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
           </svg>
         )}
-        {locale === "en" ? "Check for updates" : "Nach Updates suchen"}
+        {checking
+          ? (locale === "en" ? "Checking..." : "Prüfe...")
+          : (locale === "en" ? "Check for updates" : "Nach Updates suchen")}
       </button>
 
       {error && (
         <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
       )}
-      {deployMessage && (
-        <p className="mt-4 rounded-lg border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700">{deployMessage}</p>
-      )}
 
-      {status && (
+      {status && !deploying && !logLines.length && (
         <div className="mt-6 space-y-6">
+          {/* Version cards */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-4">
-              <p className="text-xs text-neutral-500">{locale === "en" ? "Installed version" : "Installierte Version"}</p>
+              <p className="text-xs text-neutral-500">{locale === "en" ? "Installed" : "Installiert"}</p>
               <p className="mt-1 font-mono text-sm font-semibold text-neutral-900">{status.currentCommit}</p>
             </div>
             <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-4">
-              <p className="text-xs text-neutral-500">{locale === "en" ? "Latest on main" : "Neueste Version (main)"}</p>
+              <p className="text-xs text-neutral-500">{locale === "en" ? "Latest on main" : "Aktuell auf main"}</p>
               <p className="mt-1 font-mono text-sm font-semibold text-neutral-900">{status.remoteCommit}</p>
             </div>
             <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-4">
-              <p className="text-xs text-neutral-500">{locale === "en" ? "Last deployed" : "Zuletzt eingespielt"}</p>
+              <p className="text-xs text-neutral-500">{locale === "en" ? "Last deployed" : "Zuletzt deployed"}</p>
               <p className="mt-1 text-sm font-semibold text-neutral-900">{status.lastDeployAt || "–"}</p>
             </div>
           </div>
 
-          <div className="flex items-center gap-4">
+          {/* Status + deploy */}
+          <div className="flex flex-wrap items-center gap-4">
             {status.updateAvailable ? (
               <>
                 <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
@@ -784,16 +829,12 @@ function UpdatesTabContent({ locale }: { locale: string }) {
                 <button
                   type="button"
                   onClick={applyUpdate}
-                  disabled={deploying}
-                  className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-50"
+                  className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
                 >
-                  {deploying && (
-                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
-                    </svg>
-                  )}
-                  {locale === "en" ? "Apply update now" : "Update jetzt einspielen"}
+                  <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5M16.5 12 12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                  </svg>
+                  {locale === "en" ? "Deploy now" : "Jetzt deployen"}
                 </button>
               </>
             ) : (
@@ -804,12 +845,13 @@ function UpdatesTabContent({ locale }: { locale: string }) {
             )}
           </div>
 
+          {/* Recent commits */}
           {status.commits.length > 0 && (
             <div>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
                 {locale === "en" ? "Recent commits on main" : "Letzte Commits auf main"}
               </h3>
-              <div className="divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-white">
+              <div className="divide-y divide-neutral-100 rounded-lg border border-neutral-200">
                 {status.commits.map((c) => (
                   <div key={c.hash} className="flex items-start gap-3 px-4 py-3">
                     <span className="mt-0.5 font-mono text-xs text-neutral-400">{c.hash.slice(0, 7)}</span>
@@ -821,6 +863,57 @@ function UpdatesTabContent({ locale }: { locale: string }) {
                 ))}
               </div>
             </div>
+          )}
+        </div>
+      )}
+
+      {/* Live log output */}
+      {(deploying || logLines.length > 0) && (
+        <div className="mt-6">
+          <div className="mb-2 flex items-center gap-2">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+              {locale === "en" ? "Deploy log" : "Deploy-Protokoll"}
+            </h3>
+            {deploying && (
+              <span className="inline-flex items-center gap-1 text-xs text-amber-600">
+                <svg className="h-3 w-3 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                </svg>
+                {locale === "en" ? "Running..." : "Läuft..."}
+              </span>
+            )}
+            {deployDone && (
+              <span className="inline-flex items-center gap-1 text-xs text-green-600">
+                <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                </svg>
+                {locale === "en" ? "Done" : "Fertig"}
+              </span>
+            )}
+          </div>
+          <div
+            ref={logRef}
+            className="h-72 overflow-y-auto rounded-lg bg-neutral-900 p-4 font-mono text-xs leading-relaxed"
+          >
+            {logLines.length === 0 ? (
+              <span className="text-neutral-500">
+                {locale === "en" ? "Waiting for output..." : "Warte auf Ausgabe..."}
+              </span>
+            ) : (
+              logLines.map((line, i) => (
+                <div key={i} className={lineColor(line)}>
+                  {line}
+                </div>
+              ))
+            )}
+          </div>
+          {deployDone && (
+            <p className="mt-3 rounded-lg border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700">
+              {locale === "en"
+                ? "Deploy finished. The server has restarted — reload this page in a few seconds."
+                : "Deploy abgeschlossen. Der Server wurde neu gestartet — lade die Seite in wenigen Sekunden neu."}
+            </p>
           )}
         </div>
       )}

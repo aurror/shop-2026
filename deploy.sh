@@ -1,51 +1,52 @@
 #!/bin/bash
-# Auto-deploy script — run by cron at night or manually
+# Auto-deploy script — run by cron at night or via admin dashboard
 set -e
 
-FLAG_FILE="/home/florian/.shop-deploy-pending"
-LOG_FILE="/var/log/shop-deploy.log"
-APP_DIR="/home/florian/shop-2026"
+FORCE=0
+for arg in "$@"; do
+  [ "$arg" = "--force" ] && FORCE=1
+done
 
-if [ ! -f "$FLAG_FILE" ]; then
+FLAG_FILE="$HOME/.shop-deploy-pending"
+LOG_FILE="$HOME/shop-deploy.log"
+APP_DIR="$(cd "$(dirname "$0")" && pwd)"
+
+if [ "$FORCE" -eq 0 ] && [ ! -f "$FLAG_FILE" ]; then
+  echo $HOME
   echo "No deploy pending. Exiting."
   exit 0
 fi
 
-echo "=== Deploy started at $(date) ===" >> "$LOG_FILE"
+# Fresh log each run
+> "$LOG_FILE"
 
-# --- SSH Agent Integration ---
-# Start the agent and capture the environment variables
+echo "=== Deploy started at $(date) ===" | tee -a "$LOG_FILE"
+
+echo "[1/5] Setting up SSH agent..." | tee -a "$LOG_FILE"
 eval "$(ssh-agent -s)" >> "$LOG_FILE" 2>&1
-
-# Add the key (pointing to the standard location or your specific key)
-# Note: This requires the key to NOT have a passphrase, or it will hang.
 ssh-add "$HOME/.ssh/id_shop_2026" >> "$LOG_FILE" 2>&1
 
 cd "$APP_DIR"
 
-# Pull latest
-git pull origin main >> "$LOG_FILE" 2>&1
+echo "[2/5] Pulling latest from main..." | tee -a "$LOG_FILE"
+git pull origin main 2>&1 | tee -a "$LOG_FILE"
 
-# Kill agent after use to clean up background processes
 ssh-agent -k >> /dev/null 2>&1
 
-# --- Continue Deployment ---
+echo "[3/5] Installing dependencies..." | tee -a "$LOG_FILE"
+npm ci --prefer-offline 2>&1 | tee -a "$LOG_FILE"
 
-# Install deps (only if package-lock changed)
-npm ci --prefer-offline >> "$LOG_FILE" 2>&1
+echo "[4/5] Building..." | tee -a "$LOG_FILE"
+npm run build 2>&1 | tee -a "$LOG_FILE"
 
-# Build
-npm run build >> "$LOG_FILE" 2>&1
-
-# Copy static files for standalone mode
+echo "[5/5] Copying static files..." | tee -a "$LOG_FILE"
 cp -r public .next/standalone/
 cp -r .next/static .next/standalone/.next/
+echo "Static files copied." | tee -a "$LOG_FILE"
 
-# Restart with pm2
-pm2 restart shop >> "$LOG_FILE" 2>&1 || pm2 start .next/standalone/server.js --name shop >> "$LOG_FILE" 2>&1
+echo "Restarting with pm2..." | tee -a "$LOG_FILE"
+pm2 restart shop 2>&1 | tee -a "$LOG_FILE" || pm2 start .next/standalone/server.js --name shop 2>&1 | tee -a "$LOG_FILE"
 
-# Remove flag
 rm -f "$FLAG_FILE"
 
-echo "=== Deploy finished at $(date) ===" >> "$LOG_FILE"
-#test
+echo "=== Deploy finished at $(date) ===" | tee -a "$LOG_FILE"
