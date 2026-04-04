@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useCart } from "@/components/shop/CartContext";
 
 interface HeaderProps {
-  cartCount: number;
   userName: string | null;
   isLoggedIn: boolean;
 }
 
-export function Header({ cartCount, userName, isLoggedIn }: HeaderProps) {
+export function Header({ userName, isLoggedIn }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -18,6 +18,7 @@ export function Header({ cartCount, userName, isLoggedIn }: HeaderProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const { cartCount } = useCart();
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const handleSearch = useCallback(

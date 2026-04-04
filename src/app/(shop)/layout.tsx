@@ -6,6 +6,7 @@ import { eq, sql } from "drizzle-orm";
 import { Header } from "@/components/shop/Header";
 import { Footer } from "@/components/shop/Footer";
 import { CookieBanner } from "@/components/shop/CookieBanner";
+import { CartProvider } from "@/components/shop/CartContext";
 
 export const metadata: Metadata = {
   title: {
@@ -39,15 +40,16 @@ export default async function ShopLayout({
   const cartCount = await getCartCount(userId);
 
   return (
-    <div className="flex min-h-screen flex-col">
-      <Header
-        cartCount={cartCount}
-        userName={session?.user?.name ?? null}
-        isLoggedIn={!!session?.user}
-      />
-      <main className="flex-1">{children}</main>
-      <Footer />
-      <CookieBanner />
-    </div>
+    <CartProvider initialCount={cartCount}>
+      <div className="flex min-h-screen flex-col">
+        <Header
+          userName={session?.user?.name ?? null}
+          isLoggedIn={!!session?.user}
+        />
+        <main className="flex-1">{children}</main>
+        <Footer />
+        <CookieBanner />
+      </div>
+    </CartProvider>
   );
 }

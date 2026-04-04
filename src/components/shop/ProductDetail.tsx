@@ -4,6 +4,7 @@ import { useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ProductCard } from "@/components/shop/ProductCard";
+import { useCart } from "@/components/shop/CartContext";
 
 interface Variant {
   id: string;
@@ -63,9 +64,13 @@ export function ProductDetail({ product }: { product: ProductData }) {
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
   const [addingToCart, setAddingToCart] = useState(false);
   const [cartMessage, setCartMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [cartFull, setCartFull] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
+  const [quantity, setQuantity] = useState(1);
   const [notifyEmail, setNotifyEmail] = useState("");
   const [notifyLoading, setNotifyLoading] = useState(false);
   const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
+  const { incrementCartCount } = useCart();
 
   // Variant-specific images shown first, then product-level images
   const displayImages = [
@@ -89,6 +94,8 @@ export function ProductDetail({ product }: { product: ProductData }) {
     if (!selectedVariant || isOutOfStock) return;
     setAddingToCart(true);
     setCartMessage(null);
+    setCartFull(false);
+    setAddedToCart(false);
 
     try {
       const res = await fetch("/api/cart", {
@@ -97,7 +104,7 @@ export function ProductDetail({ product }: { product: ProductData }) {
         body: JSON.stringify({
           productId: product.id,
           variantId: selectedVariant.id,
-          quantity: 1,
+          quantity,
         }),
       });
 
@@ -105,16 +112,24 @@ export function ProductDetail({ product }: { product: ProductData }) {
       if (!res.ok) {
         setCartMessage({ type: "error", text: data.error || "Fehler beim Hinzufügen" });
       } else {
-        setCartMessage({ type: "success", text: "Zum Warenkorb hinzugefügt" });
-        // Clear message after 3s
-        setTimeout(() => setCartMessage(null), 3000);
+        incrementCartCount(quantity);
+        setAddedToCart(true);
+        // Check if cart quantity now equals stock
+        if (data.quantity >= selectedVariant.stock) {
+          setCartFull(true);
+        }
+        setTimeout(() => {
+          setCartMessage(null);
+          setAddedToCart(false);
+          setCartFull(false);
+        }, 6000);
       }
     } catch {
       setCartMessage({ type: "error", text: "Netzwerkfehler. Bitte versuchen Sie es erneut." });
     } finally {
       setAddingToCart(false);
     }
-  }, [selectedVariant, isOutOfStock, product.id]);
+  }, [selectedVariant, isOutOfStock, product.id, quantity, incrementCartCount]);
 
   const handleNotify = useCallback(
     async (e: React.FormEvent) => {
@@ -295,6 +310,10 @@ export function ProductDetail({ product }: { product: ProductData }) {
                       onClick={() => {
                         setSelectedVariant(v);
                         setSelectedImageIndex(0);
+                        setQuantity(1);
+                        setAddedToCart(false);
+                        setCartFull(false);
+                        setCartMessage(null);
                       }}
                       disabled={v.stock === 0}
                       className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
@@ -363,31 +382,84 @@ export function ProductDetail({ product }: { product: ProductData }) {
                 </div>
               ) : (
                 <div>
-                  <button
-                    type="button"
-                    onClick={handleAddToCart}
-                    disabled={addingToCart || !selectedVariant}
-                    className="flex h-12 w-full items-center justify-center rounded-full bg-black text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-50 sm:w-auto sm:px-12"
-                  >
-                    {addingToCart ? (
-                      <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                      </svg>
-                    ) : (
-                      "In den Warenkorb"
-                    )}
-                  </button>
-                  {cartMessage && (
-                    <p
-                      className={`mt-3 text-sm ${
-                        cartMessage.type === "success"
-                          ? "text-green-600"
-                          : "text-red-600"
-                      }`}
+                  {/* Quantity + Add to cart */}
+                  <div className="flex items-center gap-3">
+                    {/* Quantity stepper */}
+                    <div className="flex items-center rounded-full border border-neutral-200 bg-white">
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                        disabled={quantity <= 1}
+                        className="flex h-12 w-12 items-center justify-center text-neutral-500 transition-colors hover:text-black disabled:opacity-30"
+                        aria-label="Weniger"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" />
+                        </svg>
+                      </button>
+                      <span className="w-8 text-center text-sm font-medium text-neutral-900">
+                        {quantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setQuantity((q) => Math.min(stock, q + 1))}
+                        disabled={quantity >= stock}
+                        className="flex h-12 w-12 items-center justify-center text-neutral-500 transition-colors hover:text-black disabled:opacity-30"
+                        aria-label="Mehr"
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v14m-7-7h14" />
+                        </svg>
+                      </button>
+                    </div>
+
+                    {/* Add to cart button */}
+                    <button
+                      type="button"
+                      onClick={handleAddToCart}
+                      disabled={addingToCart || !selectedVariant}
+                      className="flex h-12 flex-1 items-center justify-center rounded-full bg-black text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-50 sm:flex-none sm:px-12"
                     >
-                      {cartMessage.text}
-                    </p>
+                      {addingToCart ? (
+                        <svg className="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                        </svg>
+                      ) : (
+                        "In den Warenkorb"
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Post-add messages */}
+                  {cartMessage?.type === "error" && (
+                    <p className="mt-3 text-sm text-red-600">{cartMessage.text}</p>
+                  )}
+
+                  {addedToCart && (
+                    <div className="mt-3 flex flex-col gap-2 sm:flex-row sm:items-center">
+                      {cartFull ? (
+                        <p className="flex items-center gap-1.5 text-sm text-amber-600">
+                          <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+                          </svg>
+                          Alle verfügbaren Artikel bereits im Warenkorb
+                        </p>
+                      ) : (
+                        <p className="flex items-center gap-1.5 text-sm text-green-600">
+                          <svg className="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                          </svg>
+                          Zum Warenkorb hinzugefügt
+                        </p>
+                      )}
+                      <Link
+                        href="/cart"
+                        className="inline-flex h-9 items-center justify-center rounded-full border border-neutral-900 px-5 text-sm font-medium text-neutral-900 transition-colors hover:bg-neutral-900 hover:text-white sm:ml-auto"
+                      >
+                        Zum Warenkorb
+                      </Link>
+                    </div>
                   )}
                 </div>
               )}
