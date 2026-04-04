@@ -33,7 +33,7 @@ const tabSettingKeys: Record<TabKey, string[]> = {
   payment: ["payment_stripe_enabled", "payment_klarna_enabled", "payment_bank_transfer_enabled", "payment_stripe_key", "payment_stripe_secret"],
   email: ["email_from_address", "email_from_name", "email_smtp_host", "email_smtp_port", "email_smtp_user", "email_smtp_pass"],
   legal: ["legal_imprint", "legal_privacy", "legal_terms", "legal_revocation"],
-  ai: ["ai_enabled", "ai_provider", "ai_model", "ai_api_key", "ai_auto_suggest"],
+  ai: ["ai_enabled", "ai_provider", "ai_model", "ai_api_key", "ai_base_url", "ai_auto_suggest", "ai_writing_style", "ai_no_emojis", "ai_language", "ai_custom_instructions"],
   backup: ["backup_auto_enabled", "backup_schedule", "backup_s3_bucket", "backup_s3_region", "backup_s3_key", "backup_s3_secret", "backup_retention_days"],
   roles: [],
 };
@@ -69,7 +69,12 @@ const settingLabels: Record<string, { de: string; en: string }> = {
   ai_provider: { de: "KI Anbieter", en: "AI Provider" },
   ai_model: { de: "KI Modell", en: "AI Model" },
   ai_api_key: { de: "KI API Key", en: "AI API Key" },
+  ai_base_url: { de: "KI API Base URL", en: "AI API Base URL" },
   ai_auto_suggest: { de: "Auto-Vorschläge", en: "Auto Suggestions" },
+  ai_writing_style: { de: "Schreibstil", en: "Writing Style" },
+  ai_no_emojis: { de: "Keine Emojis", en: "No Emojis" },
+  ai_language: { de: "Sprache (z.B. Deutsch)", en: "Language (e.g. German)" },
+  ai_custom_instructions: { de: "Eigene Anweisungen (Prompt-Zusatz)", en: "Custom Instructions (prompt addition)" },
   backup_auto_enabled: { de: "Auto-Backup aktiviert", en: "Auto Backup Enabled" },
   backup_schedule: { de: "Backup Zeitplan", en: "Backup Schedule" },
   backup_s3_bucket: { de: "S3 Bucket", en: "S3 Bucket" },
@@ -85,6 +90,7 @@ const booleanSettings = new Set([
   "payment_bank_transfer_enabled",
   "ai_enabled",
   "ai_auto_suggest",
+  "ai_no_emojis",
   "backup_auto_enabled",
 ]);
 
@@ -95,6 +101,7 @@ const textareaSettings = new Set([
   "legal_revocation",
   "store_address",
   "shipping_countries",
+  "ai_custom_instructions",
 ]);
 
 const secretSettings = new Set([
@@ -103,6 +110,15 @@ const secretSettings = new Set([
   "ai_api_key",
   "backup_s3_secret",
 ]);
+
+const selectSettings: Record<string, { label: string; value: string }[]> = {
+  ai_writing_style: [
+    { label: "Professionell", value: "professional" },
+    { label: "Freundlich", value: "friendly" },
+    { label: "Technisch", value: "technical" },
+    { label: "Prägnant / Knapp", value: "concise" },
+  ],
+};
 
 export default function AdminSettingsPage() {
   const { t, locale } = useLocale();
@@ -233,6 +249,25 @@ export default function AdminSettingsPage() {
       );
     }
 
+    if (selectSettings[key]) {
+      const options = selectSettings[key];
+      const current = typeof value === "string" ? value : (options[0]?.value ?? "");
+      return (
+        <div key={key} className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-neutral-700">{getLabel(key)}</label>
+          <select
+            value={current}
+            onChange={(e) => updateValue(key, e.target.value)}
+            className="h-10 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-900 outline-none transition-colors focus:border-neutral-400"
+          >
+            {options.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
+        </div>
+      );
+    }
+
     if (textareaSettings.has(key)) {
       return (
         <Textarea
@@ -240,7 +275,8 @@ export default function AdminSettingsPage() {
           label={getLabel(key)}
           value={typeof value === "string" ? value : value ? JSON.stringify(value) : ""}
           onChange={(e) => updateValue(key, e.target.value)}
-          rows={4}
+          rows={key === "ai_custom_instructions" ? 3 : 4}
+          placeholder={key === "ai_custom_instructions" ? "z.B. Verwende keine Fachbegriffe. Erwähne immer die Kompatibilität mit anderen Produkten." : undefined}
         />
       );
     }

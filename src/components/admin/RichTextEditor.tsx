@@ -14,6 +14,7 @@ interface RichTextEditorProps {
   onChange: (html: string, plainText: string) => void;
   placeholder?: string;
   label?: string;
+  productName?: string; // Passed so the AI can use it for context
 }
 
 function ToolbarButton({
@@ -55,16 +56,18 @@ export default function RichTextEditor({
   onChange,
   placeholder = "Produktbeschreibung...",
   label,
+  productName,
 }: RichTextEditorProps) {
   const [preview, setPreview] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [optimizing, setOptimizing] = useState(false);
+  const [optimizeError, setOptimizeError] = useState("");
 
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
         heading: { levels: [2, 3, 4] },
-        // Use the default bold, italic, etc.
       }),
       Underline,
       Image.configure({ inline: false, allowBase64: true }),
@@ -73,6 +76,9 @@ export default function RichTextEditor({
       Placeholder.configure({ placeholder }),
     ],
     content: value,
+    editorProps: {
+      attributes: { spellcheck: "true" },
+    },
     onUpdate({ editor }) {
       const html = editor.getHTML();
       const text = editor.getText();
@@ -80,6 +86,36 @@ export default function RichTextEditor({
     },
     immediatelyRender: false,
   });
+
+  const handleAiOptimize = useCallback(async () => {
+    if (!editor) return;
+    setOptimizing(true);
+    setOptimizeError("");
+    try {
+      const res = await fetch("/api/admin/ai/optimize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "description",
+          name: productName || "",
+          descriptionHtml: editor.getHTML(),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setOptimizeError(data.error || "Fehler beim Optimieren");
+        return;
+      }
+      if (data.descriptionHtml) {
+        editor.commands.setContent(data.descriptionHtml);
+        onChange(data.descriptionHtml, editor.getText());
+      }
+    } catch {
+      setOptimizeError("Netzwerkfehler");
+    } finally {
+      setOptimizing(false);
+    }
+  }, [editor, productName, onChange]);
 
   const insertImage = useCallback(
     async (file: File) => {
@@ -248,6 +284,27 @@ export default function RichTextEditor({
           {/* Spacer */}
           <div className="flex-1" />
 
+          {/* AI optimize button */}
+          <button
+            type="button"
+            onMouseDown={(e) => { e.preventDefault(); handleAiOptimize(); }}
+            disabled={optimizing}
+            title="Beschreibung mit KI optimieren"
+            className="flex h-7 items-center gap-1.5 rounded border border-neutral-200 bg-white px-2.5 text-xs font-medium text-neutral-600 transition-colors hover:border-neutral-300 hover:text-neutral-900 disabled:opacity-50"
+          >
+            {optimizing ? (
+              <svg className="h-3.5 w-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            ) : (
+              <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+              </svg>
+            )}
+            {optimizing ? "Optimiere..." : "KI optimieren"}
+          </button>
+
           {/* Preview toggle */}
           <button
             type="button"
@@ -273,10 +330,15 @@ export default function RichTextEditor({
             dangerouslySetInnerHTML={{ __html: editor.getHTML() }}
           />
         ) : (
-          <EditorContent
-            editor={editor}
-            className="min-h-48 px-4 py-3 text-sm text-neutral-900 [&_.tiptap]:min-h-48 [&_.tiptap]:outline-none [&_.tiptap_h2]:mb-2 [&_.tiptap_h2]:mt-4 [&_.tiptap_h2]:text-lg [&_.tiptap_h2]:font-semibold [&_.tiptap_h3]:mb-1.5 [&_.tiptap_h3]:mt-3 [&_.tiptap_h3]:text-base [&_.tiptap_h3]:font-semibold [&_.tiptap_h4]:mb-1 [&_.tiptap_h4]:mt-2 [&_.tiptap_h4]:text-sm [&_.tiptap_h4]:font-semibold [&_.tiptap_p]:my-1 [&_.tiptap_p.is-editor-empty:first-child::before]:pointer-events-none [&_.tiptap_p.is-editor-empty:first-child::before]:float-left [&_.tiptap_p.is-editor-empty:first-child::before]:h-0 [&_.tiptap_p.is-editor-empty:first-child::before]:text-neutral-400 [&_.tiptap_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.tiptap_ul]:my-1.5 [&_.tiptap_ul]:list-disc [&_.tiptap_ul]:pl-5 [&_.tiptap_ol]:my-1.5 [&_.tiptap_ol]:list-decimal [&_.tiptap_ol]:pl-5 [&_.tiptap_li]:my-0.5 [&_.tiptap_blockquote]:my-2 [&_.tiptap_blockquote]:border-l-2 [&_.tiptap_blockquote]:border-neutral-300 [&_.tiptap_blockquote]:pl-3 [&_.tiptap_blockquote]:text-neutral-600 [&_.tiptap_hr]:my-3 [&_.tiptap_hr]:border-neutral-200 [&_.tiptap_a]:text-blue-600 [&_.tiptap_a]:underline [&_.tiptap_code]:rounded [&_.tiptap_code]:bg-neutral-100 [&_.tiptap_code]:px-1 [&_.tiptap_code]:font-mono [&_.tiptap_code]:text-xs [&_.tiptap_img]:my-2 [&_.tiptap_img]:max-w-full [&_.tiptap_img]:rounded"
-          />
+          <>
+            <EditorContent
+              editor={editor}
+              className="min-h-48 px-4 py-3 text-sm text-neutral-900 [&_.tiptap]:min-h-48 [&_.tiptap]:outline-none [&_.tiptap_h2]:mb-2 [&_.tiptap_h2]:mt-4 [&_.tiptap_h2]:text-lg [&_.tiptap_h2]:font-semibold [&_.tiptap_h3]:mb-1.5 [&_.tiptap_h3]:mt-3 [&_.tiptap_h3]:text-base [&_.tiptap_h3]:font-semibold [&_.tiptap_h4]:mb-1 [&_.tiptap_h4]:mt-2 [&_.tiptap_h4]:text-sm [&_.tiptap_h4]:font-semibold [&_.tiptap_p]:my-1 [&_.tiptap_p.is-editor-empty:first-child::before]:pointer-events-none [&_.tiptap_p.is-editor-empty:first-child::before]:float-left [&_.tiptap_p.is-editor-empty:first-child::before]:h-0 [&_.tiptap_p.is-editor-empty:first-child::before]:text-neutral-400 [&_.tiptap_p.is-editor-empty:first-child::before]:content-[attr(data-placeholder)] [&_.tiptap_ul]:my-1.5 [&_.tiptap_ul]:list-disc [&_.tiptap_ul]:pl-5 [&_.tiptap_ol]:my-1.5 [&_.tiptap_ol]:list-decimal [&_.tiptap_ol]:pl-5 [&_.tiptap_li]:my-0.5 [&_.tiptap_blockquote]:my-2 [&_.tiptap_blockquote]:border-l-2 [&_.tiptap_blockquote]:border-neutral-300 [&_.tiptap_blockquote]:pl-3 [&_.tiptap_blockquote]:text-neutral-600 [&_.tiptap_hr]:my-3 [&_.tiptap_hr]:border-neutral-200 [&_.tiptap_a]:text-blue-600 [&_.tiptap_a]:underline [&_.tiptap_code]:rounded [&_.tiptap_code]:bg-neutral-100 [&_.tiptap_code]:px-1 [&_.tiptap_code]:font-mono [&_.tiptap_code]:text-xs [&_.tiptap_img]:my-2 [&_.tiptap_img]:max-w-full [&_.tiptap_img]:rounded"
+            />
+            {optimizeError && (
+              <p className="border-t border-red-100 bg-red-50 px-4 py-2 text-xs text-red-600">{optimizeError}</p>
+            )}
+          </>
         )}
       </div>
     </div>
