@@ -14,4 +14,4 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: touch ~/.shop-deploy-pending
+          script: touch /home/florian/.shop-deploy-pending
