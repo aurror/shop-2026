@@ -40,7 +40,7 @@ export default async function ShopLayout({
   const cartCount = await getCartCount(userId);
 
   return (
-    <CartProvider initialCount={cartCount}>
+    <CartProvider initialCount={cartCount} isLoggedIn={!!userId}>
       <div className="flex min-h-screen flex-col">
         <Header
           userName={session?.user?.name ?? null}

@@ -19,13 +19,17 @@ async function getBackupConfig() {
     map[row.key] = row.value;
   }
 
+  const storeName = String(map.store_name || "3dprintit")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "-");
+
   return {
-    localPath: String(map.backup_local_path || process.env.BACKUP_LOCAL_PATH || "/var/backups/3dprintit"),
+    localPath: String(map.backup_local_path || process.env.BACKUP_LOCAL_PATH || `/var/backups/${storeName}`),
     s3Endpoint: String(map.backup_s3_endpoint || process.env.S3_ENDPOINT || ""),
     s3Region: String(map.backup_s3_region || process.env.S3_REGION || "eu-central-1"),
     s3Bucket: String(map.backup_s3_bucket || process.env.S3_BUCKET || ""),
-    s3AccessKey: String(map.backup_s3_access_key || process.env.S3_ACCESS_KEY || ""),
-    s3SecretKey: String(map.backup_s3_secret_key || process.env.S3_SECRET_KEY || ""),
+    s3AccessKey: String(map.backup_s3_key || map.backup_s3_access_key || process.env.S3_ACCESS_KEY || ""),
+    s3SecretKey: String(map.backup_s3_secret || map.backup_s3_secret_key || process.env.S3_SECRET_KEY || ""),
     retentionCount: parseInt(String(map.backup_retention_count || "10")),
   };
 }

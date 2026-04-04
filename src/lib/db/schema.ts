@@ -771,6 +771,50 @@ export const couponAttempts = schema.table(
 );
 
 // ---------------------------------------------------------------------------
+// Checkout stock reservations (stripe/klarna pending payment)
+// ---------------------------------------------------------------------------
+export const checkoutReservations = schema.table(
+  "checkout_reservations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    variantId: uuid("variant_id")
+      .notNull()
+      .references(() => productVariants.id, { onDelete: "cascade" }),
+    quantity: integer("quantity").notNull(),
+    expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+    releasedAt: timestamp("released_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("cr_order_idx").on(t.orderId),
+    index("cr_variant_idx").on(t.variantId),
+    index("cr_expires_idx").on(t.expiresAt),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// Email change requests (verification codes)
+// ---------------------------------------------------------------------------
+export const emailChangeRequests = schema.table(
+  "email_change_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    newEmail: text("new_email").notNull(),
+    code: text("code").notNull(),
+    expiresAt: timestamp("expires_at", { mode: "date" }).notNull(),
+    usedAt: timestamp("used_at", { mode: "date" }),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [index("ecr_user_idx").on(t.userId)]
+);
+
+// ---------------------------------------------------------------------------
 export const homepageRules = schema.table("homepage_rules", {
   id: uuid("id").defaultRandom().primaryKey(),
   type: text("type").notNull(), // "manual" | "most_bought" | "on_sale" | "newest" | "category" | "low_stock"

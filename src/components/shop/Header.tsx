@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useCart } from "@/components/shop/CartContext";
@@ -72,11 +73,15 @@ export function Header({ userName, isLoggedIn }: HeaderProps) {
       <nav className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Left: Logo + Nav */}
         <div className="flex items-center gap-8">
-          <Link
-            href="/"
-            className="text-lg font-semibold tracking-tight text-black transition-opacity hover:opacity-70"
-          >
-            3DPrintIt
+          <Link href="/" className="transition-opacity hover:opacity-70">
+            <Image
+              src="/logoPrintIt.svg"
+              alt="3DPrintIt"
+              width={120}
+              height={28}
+              className="h-7 w-auto"
+              priority
+            />
           </Link>
 
           {/* Desktop nav */}

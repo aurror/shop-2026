@@ -8,6 +8,8 @@ import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { EmptyState } from "@/components/shared/EmptyState";
+import { getGuestCart, saveGuestCart, clearGuestCart, getGuestCartCount } from "@/components/shop/CartContext";
+import { useCart } from "@/components/shop/CartContext";
 
 interface CartItemData {
   id: string;
@@ -73,8 +75,32 @@ export default function CartPage() {
     try {
       const res = await fetch("/api/cart");
       if (res.status === 401) {
-        setCart({ items: [], itemCount: 0, subtotal: 0 });
-        return;
+        // Not logged in — show guest cart from localStorage
+        const guestItems = getGuestCart();
+        const items: CartItemData[] = guestItems.map((g) => ({
+          id: `guest-${g.variantId}`,
+          productId: g.productId,
+          variantId: g.variantId,
+          quantity: g.quantity,
+          product: {
+            name: g.productName ?? "",
+            slug: g.productSlug ?? "",
+            images: g.productImage ? [g.productImage] : [],
+            basePrice: String(g.unitPrice ?? 0),
+            taxRate: "0.19",
+          },
+          variant: { name: g.variantName ?? "", sku: "", price: null, stock: 99, weight: null, attributes: {} },
+          unitPrice: g.unitPrice ?? 0,
+          totalPrice: (g.unitPrice ?? 0) * g.quantity,
+        }));
+        const subtotal = items.reduce((s, i) => s + i.totalPrice, 0);
+        const data: CartData = {
+          items,
+          itemCount: items.reduce((s, i) => s + i.quantity, 0),
+          subtotal: Math.round(subtotal * 100) / 100,
+        };
+        setCart(data);
+        return data;
       }
       if (!res.ok) throw new Error();
       const data: CartData = await res.json();

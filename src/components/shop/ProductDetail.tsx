@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { ProductCard } from "@/components/shop/ProductCard";
-import { useCart } from "@/components/shop/CartContext";
+import { useCart, getGuestCart, saveGuestCart, getGuestCartCount } from "@/components/shop/CartContext";
 
 interface Variant {
   id: string;
@@ -72,7 +72,7 @@ export function ProductDetail({ product }: { product: ProductData }) {
   const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
   // variantId -> quantity currently in cart
   const [cartQuantities, setCartQuantities] = useState<Record<string, number>>({});
-  const { incrementCartCount } = useCart();
+  const { incrementCartCount, setCartCount } = useCart();
 
   // Fetch current cart to know how many of each variant are already there
   useEffect(() => {
@@ -127,6 +127,42 @@ export function ProductDetail({ product }: { product: ProductData }) {
         }),
       });
 
+      if (res.status === 401) {
+        // Not logged in — store in localStorage guest cart
+        const guestCart = getGuestCart();
+        const existingIdx = guestCart.findIndex(
+          (i) => i.productId === product.id && i.variantId === selectedVariant.id
+        );
+        const addQty = Math.min(quantity, maxAddable);
+        if (existingIdx >= 0) {
+          guestCart[existingIdx].quantity = Math.min(
+            guestCart[existingIdx].quantity + addQty,
+            selectedVariant.stock
+          );
+        } else {
+          guestCart.push({
+            productId: product.id,
+            variantId: selectedVariant.id,
+            quantity: addQty,
+            productName: product.name,
+            variantName: selectedVariant.name,
+            productSlug: product.slug,
+            productImage: product.images?.[0] ?? "",
+            unitPrice: selectedVariant.price
+              ? parseFloat(selectedVariant.price)
+              : parseFloat(product.basePrice),
+          });
+        }
+        saveGuestCart(guestCart);
+        setCartCount(getGuestCartCount());
+        const newCartQty = (cartQuantities[selectedVariant.id] ?? 0) + addQty;
+        setCartQuantities((prev) => ({ ...prev, [selectedVariant.id]: newCartQty }));
+        setQuantity(1);
+        setAddedToCart(true);
+        setTimeout(() => { setAddedToCart(false); setCartFull(false); }, 6000);
+        return;
+      }
+
       const data = await res.json();
       if (!res.ok) {
         setCartMessage({ type: "error", text: data.error || "Fehler beim Hinzufügen" });
@@ -152,7 +188,7 @@ export function ProductDetail({ product }: { product: ProductData }) {
     } finally {
       setAddingToCart(false);
     }
-  }, [selectedVariant, maxAddable, product.id, quantity, incrementCartCount, cartQuantities]);
+  }, [selectedVariant, maxAddable, product.id, product.name, product.slug, product.basePrice, product.images, quantity, incrementCartCount, setCartCount, cartQuantities]);
 
   const handleNotify = useCallback(
     async (e: React.FormEvent) => {

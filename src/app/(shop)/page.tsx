@@ -36,9 +36,14 @@ export default async function HomePage() {
         />
         <div className="absolute inset-0 bg-black/60" />
         <div className="relative mx-auto flex max-w-7xl flex-col items-center px-4 py-24 text-center sm:px-6 sm:py-32 lg:px-8 lg:py-40">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white">
-            3DPrintIt
-          </p>
+          <Image
+            src="/logoPrintIt.svg"
+            alt="3DPrintIt"
+            width={240}
+            height={56}
+            className="mb-6 h-12 w-auto brightness-0 invert"
+            priority
+          />
           <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white sm:text-5xl lg:text-6xl [text-shadow:0_2px_12px_rgba(0,0,0,0.4)]">
             Modelleisenbahn &amp; 3D-Druck
           </h1>

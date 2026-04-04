@@ -6,6 +6,22 @@ import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
+import { getGuestCart, clearGuestCart } from "@/components/shop/CartContext";
+
+async function mergeGuestCartAfterLogin() {
+  const guestCart = getGuestCart();
+  if (guestCart.length === 0) return;
+  try {
+    await fetch("/api/cart/merge", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: guestCart }),
+    });
+    clearGuestCart();
+  } catch {
+    // non-critical — ignore
+  }
+}
 
 export default function LoginPage() {
   const router = useRouter();
@@ -39,6 +55,7 @@ export default function LoginPage() {
       if (result?.error) {
         setError("Ungültige E-Mail-Adresse oder Passwort.");
       } else {
+        await mergeGuestCartAfterLogin();
         router.push(callbackUrl);
         router.refresh();
       }
