@@ -2,9 +2,9 @@
 # Auto-deploy script — run by cron at night or manually
 set -e
 
-FLAG_FILE="$HOME/.shop-deploy-pending"
+FLAG_FILE="/home/florian/.shop-deploy-pending"
 LOG_FILE="/var/log/shop-deploy.log"
-APP_DIR="/home/flo/shop-2026"
+APP_DIR="/home/florian/shop-2026"
 
 if [ ! -f "$FLAG_FILE" ]; then
   echo "No deploy pending. Exiting."
