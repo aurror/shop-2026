@@ -60,6 +60,14 @@ export default function CartPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [shippingLoading, setShippingLoading] = useState(false);
+  const [stockWarnings, setStockWarnings] = useState<Array<{
+    cartItemId: string; productName: string; variantName: string;
+    type: "stock_reduced" | "out_of_stock"; requestedQty: number; availableStock: number;
+  }>>([]);
+  const [notifyVariantId, setNotifyVariantId] = useState<string | null>(null);
+  const [notifyEmail, setNotifyEmail] = useState("");
+  const [notifyLoading, setNotifyLoading] = useState(false);
+  const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
 
   const fetchCart = useCallback(async () => {
     try {
@@ -112,6 +120,14 @@ export default function CartPage() {
       const data = await fetchCart();
       if (data && data.items.length > 0) {
         await fetchShipping(data);
+        // Validate stock
+        try {
+          const vRes = await fetch("/api/cart/validate");
+          if (vRes.ok) {
+            const vData = await vRes.json();
+            setStockWarnings(vData.warnings || []);
+          }
+        } catch { /* ignore */ }
       }
       setLoading(false);
     })();
@@ -151,6 +167,24 @@ export default function CartPage() {
       if (data) await fetchShipping(data);
     } finally {
       setRemovingId(null);
+    }
+  };
+
+  const handleNotify = async () => {
+    if (!notifyVariantId || !notifyEmail) return;
+    setNotifyLoading(true);
+    setNotifyMessage(null);
+    try {
+      const res = await fetch("/api/notifications/stock", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ variantId: notifyVariantId, email: notifyEmail }),
+      });
+      const data = await res.json();
+      setNotifyMessage(res.ok ? "Wir benachrichtigen Sie, sobald der Artikel wieder verfügbar ist." : (data.error || "Fehler"));
+      if (res.ok) { setNotifyVariantId(null); setNotifyEmail(""); }
+    } finally {
+      setNotifyLoading(false);
     }
   };
 
@@ -220,6 +254,70 @@ export default function CartPage() {
         Warenkorb
       </h1>
 
+      {/* Stock warnings banner */}
+      {stockWarnings.length > 0 && (
+        <div className="mb-6 rounded-xl border border-yellow-200 bg-yellow-50 p-4">
+          <p className="mb-2 text-sm font-semibold text-yellow-800">
+            Verfügbarkeit hat sich geändert
+          </p>
+          <ul className="space-y-2">
+            {stockWarnings.map((w) => (
+              <li key={w.cartItemId} className="text-sm text-yellow-700">
+                {w.type === "out_of_stock" ? (
+                  <span>
+                    <strong>{w.productName}</strong> ({w.variantName}) ist derzeit nicht auf Lager.
+                  </span>
+                ) : (
+                  <span>
+                    <strong>{w.productName}</strong> ({w.variantName}): Nur noch {w.availableStock} verfügbar (Sie haben {w.requestedQty} im Warenkorb).
+                  </span>
+                )}
+                {" "}
+                <button
+                  className="underline hover:no-underline"
+                  onClick={() => {
+                    const item = cart?.items.find((i) => i.id === w.cartItemId);
+                    if (item) setNotifyVariantId(item.variantId);
+                  }}
+                >
+                  Benachrichtigen wenn verfügbar
+                </button>
+                {" · "}
+                <Link href="/custom-print" className="underline hover:no-underline">
+                  Anfrage stellen
+                </Link>
+              </li>
+            ))}
+          </ul>
+          {/* Inline notify form */}
+          {notifyVariantId && (
+            <div className="mt-3 flex items-center gap-2 border-t border-yellow-200 pt-3">
+              <Input
+                type="email"
+                placeholder="Ihre E-Mail-Adresse"
+                value={notifyEmail}
+                onChange={(e) => setNotifyEmail(e.target.value)}
+                className="h-9 max-w-xs text-sm"
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNotify}
+                disabled={notifyLoading || !notifyEmail}
+              >
+                {notifyLoading ? "..." : "Eintragen"}
+              </Button>
+              <button className="text-xs text-yellow-600 hover:underline" onClick={() => setNotifyVariantId(null)}>
+                Abbrechen
+              </button>
+            </div>
+          )}
+          {notifyMessage && (
+            <p className="mt-2 text-sm text-yellow-700">{notifyMessage}</p>
+          )}
+        </div>
+      )}
+
       <div className="lg:grid lg:grid-cols-12 lg:gap-12">
         {/* Cart Items */}
         <div className="lg:col-span-7">
@@ -227,6 +325,7 @@ export default function CartPage() {
             {cart.items.map((item) => {
               const isUpdating = updatingId === item.id;
               const isRemoving = removingId === item.id;
+              const itemWarning = stockWarnings.find((w) => w.cartItemId === item.id);
 
               return (
                 <div
@@ -257,6 +356,13 @@ export default function CartPage() {
 
                   {/* Details */}
                   <div className="flex flex-1 flex-col">
+                    {itemWarning && (
+                      <p className="mb-1 text-xs font-medium text-yellow-700">
+                        {itemWarning.type === "out_of_stock"
+                          ? "Nicht auf Lager"
+                          : `Nur noch ${itemWarning.availableStock} verfügbar`}
+                      </p>
+                    )}
                     <div className="flex justify-between">
                       <div>
                         <Link

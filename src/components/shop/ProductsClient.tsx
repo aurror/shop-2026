@@ -18,6 +18,13 @@ interface Product {
   totalStock: number;
 }
 
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+  productCount: number;
+}
+
 interface ProductsResponse {
   products: Product[];
   pagination: {
@@ -50,6 +57,7 @@ export function ProductsClient({
   const searchParams = useSearchParams();
 
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [pagination, setPagination] = useState({
     page: initialPage,
     limit: 24,
@@ -64,6 +72,14 @@ export function ProductsClient({
   const category = searchParams.get("category") || initialCategory;
   const featured = searchParams.get("featured") || "";
   const page = parseInt(searchParams.get("page") || String(initialPage)) || 1;
+
+  // Fetch categories once
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((d) => setCategories(d.categories || []))
+      .catch(() => {});
+  }, []);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -100,7 +116,6 @@ export function ProductsClient({
         sp.delete(key);
       }
     }
-    // Reset to page 1 when changing filters
     if (!params.page) {
       sp.delete("page");
     }
@@ -122,12 +137,22 @@ export function ProductsClient({
     updateUrl({ page: String(newPage) });
   }
 
+  function handleCategoryClick(slug: string) {
+    updateUrl({ category: slug === category ? "" : slug, page: "" });
+  }
+
+  const activeCategoryName = categories.find((c) => c.slug === category)?.name || category;
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
       {/* Title */}
       <div className="mb-8">
         <h1 className="text-2xl font-semibold tracking-tight text-black sm:text-3xl">
-          {category ? `Kategorie` : search ? `Ergebnisse für "${search}"` : "Alle Produkte"}
+          {category && activeCategoryName
+            ? activeCategoryName
+            : search
+            ? `Ergebnisse für "${search}"`
+            : "Alle Produkte"}
         </h1>
         {pagination.total > 0 && (
           <p className="mt-2 text-sm text-neutral-500">
@@ -135,6 +160,42 @@ export function ProductsClient({
           </p>
         )}
       </div>
+
+      {/* Category filter pills */}
+      {categories.length > 0 && (
+        <div className="mb-6 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => updateUrl({ category: "", page: "" })}
+            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+              !category
+                ? "bg-black text-white"
+                : "border border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50"
+            }`}
+          >
+            Alle
+          </button>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              type="button"
+              onClick={() => handleCategoryClick(cat.slug)}
+              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
+                category === cat.slug
+                  ? "bg-black text-white"
+                  : "border border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50"
+              }`}
+            >
+              {cat.name}
+              {cat.productCount > 0 && (
+                <span className={`ml-1.5 text-xs ${category === cat.slug ? "text-white/70" : "text-neutral-400"}`}>
+                  {cat.productCount}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Filters bar */}
       <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -176,7 +237,7 @@ export function ProductsClient({
       </div>
 
       {/* Active filters */}
-      {(search || category || featured) && (
+      {(search || featured) && (
         <div className="mb-6 flex flex-wrap items-center gap-2">
           {search && (
             <button
@@ -189,18 +250,6 @@ export function ProductsClient({
               className="inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
             >
               Suche: {search}
-              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-          {category && (
-            <button
-              type="button"
-              onClick={() => updateUrl({ category: "", page: "" })}
-              className="inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
-            >
-              Kategorie: {category}
               <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
@@ -253,7 +302,7 @@ export function ProductsClient({
             Keine Produkte gefunden
           </h2>
           <p className="mt-2 text-sm text-neutral-500">
-            Versuchen Sie einen anderen Suchbegriff oder entfernen Sie Filter.
+            Versuchen Sie einen anderen Suchbegriff oder wählen Sie eine andere Kategorie.
           </p>
         </div>
       ) : (
@@ -332,3 +381,5 @@ export function ProductsClient({
     </div>
   );
 }
+
+

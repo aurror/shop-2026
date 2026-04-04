@@ -48,6 +48,8 @@ export default function AdminDiscountsPage() {
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, total: 0 });
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [productSales, setProductSales] = useState<any[]>([]);
+  const [salesLoading, setSalesLoading] = useState(true);
 
   const fetchDiscounts = useCallback(async (page = 1) => {
     setLoading(true);
@@ -66,9 +68,24 @@ export default function AdminDiscountsPage() {
     }
   }, []);
 
+  const fetchProductSales = useCallback(async () => {
+    setSalesLoading(true);
+    try {
+      const res = await fetch("/api/admin/products?limit=100&sortBy=name&sortOrder=asc");
+      if (res.ok) {
+        const data = await res.json();
+        const onSale = (data.products || []).filter((p: any) => p.compareAtPrice);
+        setProductSales(onSale);
+      }
+    } catch { /* ignore */ } finally {
+      setSalesLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchDiscounts(1);
-  }, [fetchDiscounts]);
+    fetchProductSales();
+  }, [fetchDiscounts, fetchProductSales]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -109,12 +126,12 @@ export default function AdminDiscountsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-neutral-900">{t("discounts")}</h1>
           <p className="mt-1 text-sm text-neutral-500">
-            {pagination.total} {t("items")}
+            Rabattcodes und Produktaktionen
           </p>
         </div>
         <Link href="/admin/discounts/new">
@@ -124,8 +141,88 @@ export default function AdminDiscountsPage() {
         </Link>
       </div>
 
-      {/* Table */}
+      {/* Product Sales Section */}
       <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-4">
+          <h2 className="text-sm font-semibold text-neutral-900">Produktaktionen</h2>
+          <span className="text-xs text-neutral-400">Produkte mit Aktionspreis (Vergleichspreis gesetzt)</span>
+        </div>
+        {salesLoading ? (
+          <div className="flex justify-center py-8"><LoadingSpinner size="md" /></div>
+        ) : productSales.length === 0 ? (
+          <div className="px-6 py-8 text-center text-sm text-neutral-400">
+            Keine Produkte haben aktuell einen Aktionspreis gesetzt.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="admin-table w-full">
+              <thead>
+                <tr>
+                  <th>Produkt</th>
+                  <th className="text-right">Aktionspreis</th>
+                  <th className="text-right">UVP</th>
+                  <th>Aktiv bis</th>
+                  <th>Code</th>
+                  <th>{t("status")}</th>
+                  <th className="w-16"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {productSales.map((p) => {
+                  const expired = p.saleEndsAt && new Date(p.saleEndsAt) < new Date();
+                  const saleActive = !expired;
+                  return (
+                    <tr key={p.id}>
+                      <td>
+                        <span className="text-sm font-medium text-neutral-900">{p.name}</span>
+                      </td>
+                      <td className="text-right text-sm font-semibold text-neutral-900">
+                        {formatCurrency(p.basePrice)}
+                      </td>
+                      <td className="text-right text-sm text-neutral-400 line-through">
+                        {formatCurrency(p.compareAtPrice)}
+                      </td>
+                      <td className="text-xs text-neutral-500">
+                        {p.saleEndsAt ? formatDate(p.saleEndsAt) : <span className="text-neutral-300">Unbegrenzt</span>}
+                      </td>
+                      <td>
+                        {p.saleDiscountCode ? (
+                          <span className="rounded bg-neutral-100 px-2 py-0.5 font-mono text-xs font-semibold text-neutral-700">
+                            {p.saleDiscountCode}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-neutral-300">—</span>
+                        )}
+                      </td>
+                      <td>
+                        {expired ? (
+                          <Badge variant="danger">Abgelaufen</Badge>
+                        ) : saleActive ? (
+                          <Badge variant="success">Aktiv</Badge>
+                        ) : (
+                          <Badge variant="default">Inaktiv</Badge>
+                        )}
+                      </td>
+                      <td>
+                        <Link href={`/admin/products/${p.id}`}>
+                          <Button variant="outline" size="sm">{t("edit")}</Button>
+                        </Link>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {/* Discount Codes Section */}
+      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-4">
+          <h2 className="text-sm font-semibold text-neutral-900">Rabattcodes</h2>
+          <span className="text-xs text-neutral-400">{pagination.total} Codes</span>
+        </div>
         {loading ? (
           <div className="flex justify-center py-16">
             <LoadingSpinner size="lg" />
@@ -133,7 +230,7 @@ export default function AdminDiscountsPage() {
         ) : discounts.length === 0 ? (
           <EmptyState
             title={t("noResults")}
-            description="Keine Rabatte vorhanden."
+            description="Keine Rabattcodes vorhanden."
           />
         ) : (
           <div className="overflow-x-auto">

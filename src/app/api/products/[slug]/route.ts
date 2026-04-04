@@ -6,7 +6,7 @@ import {
   categories,
   productRelations,
 } from "@/lib/db/schema";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, sql } from "drizzle-orm";
 
 export async function GET(
   request: NextRequest,
@@ -23,7 +23,7 @@ export async function GET(
         description: products.description,
         descriptionHtml: products.descriptionHtml,
         basePrice: products.basePrice,
-        compareAtPrice: products.compareAtPrice,
+        compareAtPrice: sql<string | null>`CASE WHEN ${products.saleEndsAt} IS NULL OR ${products.saleEndsAt} > NOW() THEN ${products.compareAtPrice} ELSE NULL END`,
         images: products.images,
         featured: products.featured,
         weight: products.weight,
@@ -35,7 +35,6 @@ export async function GET(
       })
       .from(products)
       .where(and(eq(products.slug, slug), eq(products.active, true)))
-      .limit(1);
 
     if (!product.length) {
       return NextResponse.json(
@@ -89,7 +88,7 @@ export async function GET(
             name: products.name,
             slug: products.slug,
             basePrice: products.basePrice,
-            compareAtPrice: products.compareAtPrice,
+            compareAtPrice: sql<string | null>`CASE WHEN ${products.saleEndsAt} IS NULL OR ${products.saleEndsAt} > NOW() THEN ${products.compareAtPrice} ELSE NULL END`,
             images: products.images,
           })
           .from(products)

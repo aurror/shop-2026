@@ -115,11 +115,13 @@ export default function AdminProductsPage() {
             <table className="admin-table w-full">
               <thead>
                 <tr>
-                  <th className="w-12"></th>
+                  <th className="w-36"></th>
                   <th>{t("productName")}</th>
                   <th>{t("category")}</th>
                   <th className="text-right">{t("price")}</th>
                   <th className="text-right">{t("stock")}</th>
+                  <th className="text-right">Verkauft</th>
+                  <th className="text-right">Umsatz</th>
                   <th>{t("status")}</th>
                   <th className="w-10"></th>
                 </tr>
@@ -136,11 +138,11 @@ export default function AdminProductsPage() {
                         <img
                           src={product.images[0]}
                           alt={product.name}
-                          className="h-10 w-10 rounded-lg border border-neutral-200 object-cover"
+                          className="h-20 w-32 rounded-lg border border-neutral-200 object-cover"
                         />
                       ) : (
-                        <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-100 text-neutral-400">
-                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <div className="flex h-20 w-32 items-center justify-center rounded-lg border border-neutral-200 bg-neutral-100 text-neutral-400">
+                          <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5a1.5 1.5 0 001.5-1.5V5.25a1.5 1.5 0 00-1.5-1.5H3.75a1.5 1.5 0 00-1.5 1.5V19.5a1.5 1.5 0 001.5 1.5z" />
                           </svg>
                         </div>
@@ -150,12 +152,18 @@ export default function AdminProductsPage() {
                       <p className="text-sm font-medium text-neutral-900">{product.name}</p>
                       <p className="text-xs text-neutral-500">{product.slug}</p>
                     </td>
-                    <td className="text-sm text-neutral-600">{product.categoryId || "-"}</td>
+                    <td className="text-sm text-neutral-600">{product.categoryName || "-"}</td>
                     <td className="text-right text-sm font-medium">{formatCurrency(product.basePrice)}</td>
                     <td className="text-right">
                       <span className={`text-sm font-medium ${getTotalStock(product) === 0 ? "text-red-600" : getTotalStock(product) <= 5 ? "text-yellow-600" : "text-neutral-900"}`}>
                         {getTotalStock(product)}
                       </span>
+                    </td>
+                    <td className="text-right text-sm text-neutral-600">
+                      {product.totalSold > 0 ? product.totalSold : <span className="text-neutral-300">—</span>}
+                    </td>
+                    <td className="text-right text-sm font-medium text-neutral-900">
+                      {product.totalRevenue > 0 ? formatCurrency(String(product.totalRevenue)) : <span className="text-neutral-300">—</span>}
                     </td>
                     <td>
                       <Badge variant={product.active ? "success" : "default"}>

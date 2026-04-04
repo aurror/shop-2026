@@ -63,6 +63,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [form, setForm] = useState({
     name: "", slug: "", description: "", descriptionHtml: "", basePrice: "", compareAtPrice: "",
     categoryId: "", weight: "0", taxRate: "19.00", featured: false, active: true,
+    saleEndsAt: "", saleDiscountCode: "",
   });
 
   useEffect(() => {
@@ -85,6 +86,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             taxRate: p.taxRate || "19.00",
             featured: p.featured ?? false,
             active: p.active ?? true,
+            saleEndsAt: p.saleEndsAt ? new Date(p.saleEndsAt).toISOString().slice(0, 16) : "",
+            saleDiscountCode: p.saleDiscountCode || "",
           });
           setImages(p.images || []);
           setVariants(p.variants || []);
@@ -738,6 +741,46 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
               <Input label={`${t("price")} (EUR)`} type="number" step="0.01" min="0" value={form.basePrice} onChange={(e) => updateField("basePrice", e.target.value)} />
               <Input label="Vergleichspreis" type="number" step="0.01" min="0" value={form.compareAtPrice} onChange={(e) => updateField("compareAtPrice", e.target.value)} />
               <Input label="MwSt.-Satz (%)" type="number" step="0.01" value={form.taxRate} onChange={(e) => updateField("taxRate", e.target.value)} />
+            </div>
+          </div>
+
+          {/* Sale configuration */}
+          <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-1 text-sm font-semibold text-neutral-900">Rabatt-Konfiguration</h2>
+            <p className="mb-4 text-xs text-neutral-500">
+              Setzen Sie den Vergleichspreis oben um den Aktionspreis zu zeigen. Hier können Sie die Laufzeit und einen optionalen Code definieren.
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1">Aktiv bis</label>
+                <input
+                  type="datetime-local"
+                  className="admin-input w-full"
+                  value={form.saleEndsAt}
+                  onChange={(e) => updateField("saleEndsAt", e.target.value)}
+                />
+                {form.saleEndsAt && new Date(form.saleEndsAt) < new Date() && (
+                  <p className="mt-1 text-xs text-red-500">Dieser Rabatt ist abgelaufen.</p>
+                )}
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-neutral-700 mb-1">Rabattcode (optional)</label>
+                <input
+                  type="text"
+                  className="admin-input w-full uppercase"
+                  placeholder="z.B. SALE20"
+                  value={form.saleDiscountCode}
+                  onChange={(e) => updateField("saleDiscountCode", e.target.value.toUpperCase())}
+                />
+                <p className="mt-1 text-xs text-neutral-400">
+                  Wenn angegeben, wird dieser Code automatisch in der Rabattverwaltung angezeigt.
+                </p>
+              </div>
+              {form.saleDiscountCode && (
+                <div className="rounded-lg bg-neutral-50 p-3 text-xs text-neutral-600">
+                  Code <strong className="font-mono">{form.saleDiscountCode}</strong> wird Kunden angezeigt und kann beim Checkout eingegeben werden.
+                </div>
+              )}
             </div>
           </div>
 

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { products, productVariants } from "@/lib/db/schema";
-import { eq, desc, asc, sql, ilike, or, count } from "drizzle-orm";
+import { products, productVariants, categories, orderItems } from "@/lib/db/schema";
+import { eq, desc, asc, sql, ilike, or, count, getTableColumns } from "drizzle-orm";
 import { productSchema } from "@/lib/security";
 
 export async function GET(request: NextRequest) {
@@ -42,8 +42,14 @@ export async function GET(request: NextRequest) {
 
     const [productList, totalResult] = await Promise.all([
       db
-        .select()
+        .select({
+          ...getTableColumns(products),
+          categoryName: categories.name,
+          totalSold: sql<number>`COALESCE((SELECT SUM(oi.quantity) FROM ${orderItems} oi WHERE oi.product_id = ${products.id}), 0)`,
+          totalRevenue: sql<string>`COALESCE((SELECT SUM(oi.total_price) FROM ${orderItems} oi WHERE oi.product_id = ${products.id}), 0)`,
+        })
         .from(products)
+        .leftJoin(categories, eq(products.categoryId, categories.id))
         .where(whereClause)
         .orderBy(orderFn(sortColumn))
         .limit(limit)

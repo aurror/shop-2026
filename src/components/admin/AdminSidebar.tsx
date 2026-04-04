@@ -10,20 +10,43 @@ interface AdminSidebarProps {
   onClose: () => void;
 }
 
-const navItems = [
-  { key: "dashboard" as const, href: "/admin", icon: "grid" },
-  { key: "orders" as const, href: "/admin/orders", icon: "package" },
-  { key: "returns" as const, href: "/admin/returns", icon: "undo" },
-  { key: "requests" as const, href: "/admin/requests", icon: "inbox" },
-  { key: "products" as const, href: "/admin/products", icon: "box" },
-  { key: "customers" as const, href: "/admin/customers", icon: "users" },
-  { key: "analytics" as const, href: "/admin/analytics", icon: "chart" },
-  { key: "discounts" as const, href: "/admin/discounts", icon: "tag" },
-  { key: "notifications" as const, href: "/admin/notifications", icon: "bell" },
-  { key: "settings" as const, href: "/admin/settings", icon: "settings" },
-  { key: "backups" as const, href: "/admin/backups", icon: "database" },
-  { key: "aiSuggestions" as const, href: "/admin/ai-suggestions", icon: "sparkles" },
-  { key: "roles" as const, href: "/admin/roles", icon: "shield" },
+const navGroups = [
+  {
+    label: null,
+    items: [
+      { key: "dashboard" as const, href: "/admin", icon: "grid" },
+    ],
+  },
+  {
+    label: "Shop",
+    items: [
+      { key: "orders" as const, href: "/admin/orders", icon: "package" },
+      { key: "returns" as const, href: "/admin/returns", icon: "undo" },
+      { key: "requests" as const, href: "/admin/requests", icon: "inbox" },
+      { key: "customers" as const, href: "/admin/customers", icon: "users" },
+    ],
+  },
+  {
+    label: "Sortiment",
+    items: [
+      { key: "products" as const, href: "/admin/products", icon: "box" },
+      { key: "categories" as const, href: "/admin/categories", icon: "folder" },
+      { key: "productLinks" as const, href: "/admin/recommended", icon: "link" },
+      { key: "featuredPage" as const, href: "/admin/featured", icon: "star" },
+      { key: "discounts" as const, href: "/admin/discounts", icon: "tag" },
+    ],
+  },
+  {
+    label: "System",
+    items: [
+      { key: "analytics" as const, href: "/admin/analytics", icon: "chart" },
+      { key: "notifications" as const, href: "/admin/notifications", icon: "bell" },
+      { key: "aiSuggestions" as const, href: "/admin/ai-suggestions", icon: "sparkles" },
+      { key: "roles" as const, href: "/admin/roles", icon: "shield" },
+      { key: "settings" as const, href: "/admin/settings", icon: "settings" },
+      { key: "backups" as const, href: "/admin/backups", icon: "database" },
+    ],
+  },
 ] as const;
 
 function NavIcon({ name }: { name: string }) {
@@ -103,6 +126,24 @@ function NavIcon({ name }: { name: string }) {
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
         </svg>
       );
+    case "folder":
+      return (
+        <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+        </svg>
+      );
+    case "link":
+      return (
+        <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244" />
+        </svg>
+      );
+    case "star":
+      return (
+        <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+        </svg>
+      );
     case "inbox":
       return (
         <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -161,41 +202,50 @@ export function AdminSidebar({ unreadCount, isOpen, onClose }: AdminSidebarProps
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4">
-          <ul className="space-y-1">
-            {navItems.map((item) => {
-              const active = isActive(item.href);
-              return (
-                <li key={item.key}>
-                  <Link
-                    href={item.href}
-                    onClick={onClose}
-                    className={`
-                      flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
-                      ${
-                        active
-                          ? "bg-neutral-900 text-white"
-                          : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
-                      }
-                    `}
-                  >
-                    <NavIcon name={item.icon} />
-                    <span className="flex-1">{t(item.key)}</span>
-                    {item.key === "notifications" && unreadCount > 0 && (
-                      <span
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-4">
+          {navGroups.map((group, gi) => (
+            <div key={gi}>
+              {group.label && (
+                <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-widest text-neutral-400">
+                  {group.label}
+                </p>
+              )}
+              <ul className="space-y-0.5">
+                {group.items.map((item) => {
+                  const active = isActive(item.href);
+                  return (
+                    <li key={item.key}>
+                      <Link
+                        href={item.href}
+                        onClick={onClose}
                         className={`
-                          inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-semibold
-                          ${active ? "bg-white text-neutral-900" : "bg-neutral-900 text-white"}
+                          flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors
+                          ${
+                            active
+                              ? "bg-neutral-900 text-white"
+                              : "text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900"
+                          }
                         `}
                       >
-                        {unreadCount > 99 ? "99+" : unreadCount}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+                        <NavIcon name={item.icon} />
+                        <span className="flex-1">{t(item.key)}</span>
+                        {item.key === "notifications" && unreadCount > 0 && (
+                          <span
+                            className={`
+                              inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-semibold
+                              ${active ? "bg-white text-neutral-900" : "bg-neutral-900 text-white"}
+                            `}
+                          >
+                            {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
         </nav>
 
         {/* Footer */}

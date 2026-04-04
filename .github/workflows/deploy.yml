@@ -1,0 +1,17 @@
+name: Mark Deploy Pending
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  mark-pending:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set deploy flag on server
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: touch ~/.shop-deploy-pending

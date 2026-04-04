@@ -99,6 +99,8 @@ export const products = schema.table(
     descriptionHtml: text("description_html"),
     basePrice: decimal("base_price", { precision: 10, scale: 2 }).notNull(),
     compareAtPrice: decimal("compare_at_price", { precision: 10, scale: 2 }),
+    saleEndsAt: timestamp("sale_ends_at", { mode: "date", withTimezone: true }),
+    saleDiscountCode: text("sale_discount_code"),
     categoryId: uuid("category_id").references(() => categories.id, {
       onDelete: "set null",
     }),
@@ -747,3 +749,16 @@ export const telegramUsers = schema.table(
   },
   (t) => [uniqueIndex("telegram_users_chat_id_idx").on(t.chatId)],
 );
+
+// ---------------------------------------------------------------------------
+// Homepage recommendation rules
+// ---------------------------------------------------------------------------
+export const homepageRules = schema.table("homepage_rules", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  type: text("type").notNull(), // "manual" | "most_bought" | "on_sale" | "newest" | "category" | "low_stock"
+  label: text("label").notNull(),
+  config: jsonb("config").$type<Record<string, unknown>>().default({}).notNull(),
+  sortOrder: integer("sort_order").default(0).notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+});

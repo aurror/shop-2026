@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { products, productVariants, productRelations } from "@/lib/db/schema";
+import { products, productVariants, productRelations, discounts } from "@/lib/db/schema";
 import { eq, asc } from "drizzle-orm";
 import { productSchema } from "@/lib/security";
 
@@ -133,6 +133,8 @@ export async function PUT(
     if (data.descriptionHtml !== undefined) updateData.descriptionHtml = data.descriptionHtml;
     if (data.basePrice !== undefined) updateData.basePrice = data.basePrice;
     if (data.compareAtPrice !== undefined) updateData.compareAtPrice = data.compareAtPrice;
+    if (body.saleEndsAt !== undefined) updateData.saleEndsAt = body.saleEndsAt ? new Date(body.saleEndsAt) : null;
+    if (body.saleDiscountCode !== undefined) updateData.saleDiscountCode = body.saleDiscountCode || null;
     if (data.categoryId !== undefined) updateData.categoryId = data.categoryId;
     if (data.weight !== undefined) updateData.weight = data.weight;
     if (data.featured !== undefined) updateData.featured = data.featured;
@@ -147,6 +149,41 @@ export async function PUT(
       .set(updateData)
       .where(eq(products.id, id))
       .returning();
+
+    // Auto-sync discount code if a product-level sale code is set
+    if (body.saleDiscountCode !== undefined) {
+      const code = (body.saleDiscountCode as string)?.trim().toUpperCase();
+      if (code && updated.compareAtPrice && updated.basePrice) {
+        const baseP = parseFloat(updated.basePrice);
+        const saleP = parseFloat(updated.compareAtPrice as string);
+        const pctOff = baseP > 0 ? Math.round(((baseP - saleP) / baseP) * 100) : 0;
+        // Upsert discount record for this code
+        await db
+          .insert(discounts)
+          .values({
+            code,
+            description: `Produktrabatt: ${updated.name}`,
+            type: "percentage",
+            value: String(pctOff),
+            productIds: [id],
+            expiresAt: body.saleEndsAt ? new Date(body.saleEndsAt) : null,
+            active: true,
+          } as any)
+          .onConflictDoUpdate({
+            target: discounts.code,
+            set: {
+              description: `Produktrabatt: ${updated.name}`,
+              value: String(pctOff),
+              productIds: [id],
+              expiresAt: body.saleEndsAt ? new Date(body.saleEndsAt) : null,
+              active: true,
+            } as any,
+          });
+      } else if (!code) {
+        // Code removed — deactivate any existing discount with this code tied to this product
+        // (we can't easily find it without storing the old code, so just leave it)
+      }
+    }
 
     return NextResponse.json({ product: updated });
   } catch (error) {

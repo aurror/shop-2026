@@ -93,6 +93,10 @@ export default function CheckoutPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [stockWarnings, setStockWarnings] = useState<Array<{
+    cartItemId: string; productName: string; variantName: string;
+    type: "stock_reduced" | "out_of_stock"; requestedQty: number; availableStock: number;
+  }>>([]);
 
   // Form data
   const [shippingAddress, setShippingAddress] = useState<Address>(emptyAddress);
@@ -184,6 +188,14 @@ export default function CheckoutPage() {
       const data = await fetchCart();
       if (data) await fetchShipping(data);
       await fetchAddresses();
+      // Validate stock on checkout entry
+      try {
+        const vRes = await fetch("/api/cart/validate");
+        if (vRes.ok) {
+          const vData = await vRes.json();
+          setStockWarnings(vData.warnings || []);
+        }
+      } catch { /* ignore */ }
       setLoading(false);
     })();
   }, [status, fetchCart, fetchShipping, fetchAddresses]);
@@ -334,6 +346,25 @@ export default function CheckoutPage() {
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
       <h1 className="mb-2 text-2xl font-semibold tracking-tight text-neutral-900">Kasse</h1>
+
+      {/* Stock warnings banner */}
+      {stockWarnings.length > 0 && (
+        <div className="mb-6 rounded-xl border border-yellow-200 bg-yellow-50 p-4">
+          <p className="mb-1 text-sm font-semibold text-yellow-800">Verfügbarkeit geändert</p>
+          <ul className="space-y-1">
+            {stockWarnings.map((w) => (
+              <li key={w.cartItemId} className="text-sm text-yellow-700">
+                {w.type === "out_of_stock"
+                  ? <><strong>{w.productName}</strong> ({w.variantName}) ist nicht mehr auf Lager.</>
+                  : <><strong>{w.productName}</strong> ({w.variantName}): Nur noch {w.availableStock} verfügbar (Sie haben {w.requestedQty} im Warenkorb).</>
+                }
+                {" "}
+                <Link href="/cart" className="underline hover:no-underline">Warenkorb anpassen</Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Steps indicator */}
       <div className="mb-10 flex items-center gap-2">

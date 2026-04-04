@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
         slug: products.slug,
         description: products.description,
         basePrice: products.basePrice,
-        compareAtPrice: products.compareAtPrice,
+        compareAtPrice: sql<string | null>`CASE WHEN ${products.saleEndsAt} IS NULL OR ${products.saleEndsAt} > NOW() THEN ${products.compareAtPrice} ELSE NULL END`,
         images: products.images,
         featured: products.featured,
         weight: products.weight,

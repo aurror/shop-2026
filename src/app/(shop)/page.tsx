@@ -1,140 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { db } from "@/lib/db";
-import { products, productVariants, categories } from "@/lib/db/schema";
-import { eq, and, desc, asc, sql } from "drizzle-orm";
+import { categories } from "@/lib/db/schema";
+import { asc } from "drizzle-orm";
 import { ProductCard } from "@/components/shop/ProductCard";
-
-function formatPrice(price: number): string {
-  return new Intl.NumberFormat("de-DE", {
-    style: "currency",
-    currency: "EUR",
-  }).format(price);
-}
-
-async function getFeaturedProducts() {
-  const items = await db
-    .select({
-      id: products.id,
-      name: products.name,
-      slug: products.slug,
-      basePrice: products.basePrice,
-      compareAtPrice: products.compareAtPrice,
-      images: products.images,
-      featured: products.featured,
-      categoryId: products.categoryId,
-      categoryName: categories.name,
-      categorySlug: categories.slug,
-    })
-    .from(products)
-    .leftJoin(categories, eq(products.categoryId, categories.id))
-    .where(and(eq(products.active, true), eq(products.featured, true)))
-    .orderBy(desc(products.createdAt))
-    .limit(8);
-
-  const productIds = items.map((p) => p.id);
-  let allVariants: any[] = [];
-  if (productIds.length > 0) {
-    allVariants = await db
-      .select()
-      .from(productVariants)
-      .where(
-        and(
-          eq(productVariants.active, true),
-          sql`${productVariants.productId} = ANY(ARRAY[${sql.join(productIds.map((id) => sql`${id}::uuid`), sql`, `)}])`
-        )
-      )
-      .orderBy(asc(productVariants.sortOrder));
-  }
-
-  return items.map((p) => {
-    const vars = allVariants.filter((v) => v.productId === p.id);
-    const prices = vars
-      .map((v) => (v.price ? parseFloat(v.price) : parseFloat(p.basePrice)))
-      .filter((pr) => !isNaN(pr));
-    return {
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      basePrice: p.basePrice,
-      compareAtPrice: p.compareAtPrice,
-      images: (p.images as string[]) || [],
-      featured: p.featured,
-      category: p.categoryId
-        ? { name: p.categoryName!, slug: p.categorySlug! }
-        : null,
-      variants: vars.map((v: any) => ({
-        id: v.id,
-        price: v.price,
-        stock: v.stock,
-      })),
-      minPrice: prices.length > 0 ? Math.min(...prices) : parseFloat(p.basePrice),
-      totalStock: vars.reduce((sum: number, v: any) => sum + v.stock, 0),
-    };
-  });
-}
-
-async function getNewArrivals() {
-  const items = await db
-    .select({
-      id: products.id,
-      name: products.name,
-      slug: products.slug,
-      basePrice: products.basePrice,
-      compareAtPrice: products.compareAtPrice,
-      images: products.images,
-      featured: products.featured,
-      categoryId: products.categoryId,
-      categoryName: categories.name,
-      categorySlug: categories.slug,
-    })
-    .from(products)
-    .leftJoin(categories, eq(products.categoryId, categories.id))
-    .where(eq(products.active, true))
-    .orderBy(desc(products.createdAt))
-    .limit(8);
-
-  const productIds = items.map((p) => p.id);
-  let allVariants: any[] = [];
-  if (productIds.length > 0) {
-    allVariants = await db
-      .select()
-      .from(productVariants)
-      .where(
-        and(
-          eq(productVariants.active, true),
-          sql`${productVariants.productId} = ANY(ARRAY[${sql.join(productIds.map((id) => sql`${id}::uuid`), sql`, `)}])`
-        )
-      )
-      .orderBy(asc(productVariants.sortOrder));
-  }
-
-  return items.map((p) => {
-    const vars = allVariants.filter((v) => v.productId === p.id);
-    const prices = vars
-      .map((v) => (v.price ? parseFloat(v.price) : parseFloat(p.basePrice)))
-      .filter((pr) => !isNaN(pr));
-    return {
-      id: p.id,
-      name: p.name,
-      slug: p.slug,
-      basePrice: p.basePrice,
-      compareAtPrice: p.compareAtPrice,
-      images: (p.images as string[]) || [],
-      featured: p.featured,
-      category: p.categoryId
-        ? { name: p.categoryName!, slug: p.categorySlug! }
-        : null,
-      variants: vars.map((v: any) => ({
-        id: v.id,
-        price: v.price,
-        stock: v.stock,
-      })),
-      minPrice: prices.length > 0 ? Math.min(...prices) : parseFloat(p.basePrice),
-      totalStock: vars.reduce((sum: number, v: any) => sum + v.stock, 0),
-    };
-  });
-}
+import { evaluateHomepageRules } from "@/lib/homepage-rules";
 
 async function getCategories() {
   return db
@@ -149,11 +19,12 @@ async function getCategories() {
 }
 
 export default async function HomePage() {
-  const [featuredProducts, newArrivals, allCategories] = await Promise.all([
-    getFeaturedProducts(),
-    getNewArrivals(),
+  const [{ sections }, allCategories] = await Promise.all([
+    evaluateHomepageRules(),
     getCategories(),
   ]);
+
+  const hasProducts = sections.some((s) => s.sectionType === "products");
 
   return (
     <>
@@ -194,135 +65,135 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Featured Products */}
-      {featuredProducts.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
-          <div className="flex items-end justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-black sm:text-3xl">
-                Empfehlungen
-              </h2>
-              <p className="mt-2 text-sm text-neutral-500">
-                Unsere beliebtesten Produkte
-              </p>
-            </div>
-            <Link
-              href="/products?featured=true"
-              className="hidden text-sm font-medium text-neutral-500 transition-colors hover:text-black sm:block"
-            >
-              Alle ansehen &rarr;
-            </Link>
-          </div>
-
-          <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {featuredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-
-          <div className="mt-8 text-center sm:hidden">
-            <Link
-              href="/products?featured=true"
-              className="text-sm font-medium text-neutral-500 transition-colors hover:text-black"
-            >
-              Alle ansehen &rarr;
-            </Link>
-          </div>
-        </section>
-      )}
-
-      {/* Category showcase */}
-      {allCategories.length > 0 && (
-        <section className="border-y border-neutral-100 bg-neutral-50">
-          <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
-            <div className="text-center">
-              <h2 className="text-2xl font-semibold tracking-tight text-black sm:text-3xl">
-                Kategorien
-              </h2>
-              <p className="mt-2 text-sm text-neutral-500">
-                Finden Sie genau das, was Sie suchen
-              </p>
-            </div>
-
-            <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {allCategories.map((cat) => (
+      {/* Dynamic sections — order controlled in admin Frontpage Display */}
+      {sections.map((section, i) => {
+        if (section.sectionType === "products") {
+          return (
+            <section key={i} className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
+              <div className="flex items-end justify-between">
+                <h2 className="text-2xl font-semibold tracking-tight text-black sm:text-3xl">
+                  {section.label}
+                </h2>
                 <Link
-                  key={cat.id}
-                  href={`/kategorie/${cat.slug}`}
-                  className="group flex flex-col justify-between rounded-xl border border-neutral-200 bg-white p-6 transition-all hover:border-neutral-300 hover:shadow-sm"
+                  href="/products"
+                  className="hidden text-sm font-medium text-neutral-500 transition-colors hover:text-black sm:block"
                 >
-                  <div>
-                    <h3 className="text-base font-semibold text-black">
-                      {cat.name}
-                    </h3>
-                    {cat.description && (
-                      <p className="mt-2 text-sm leading-relaxed text-neutral-500 line-clamp-2">
-                        {cat.description}
-                      </p>
-                    )}
-                  </div>
-                  <span className="mt-4 text-xs font-medium text-neutral-400 transition-colors group-hover:text-black">
-                    Entdecken &rarr;
-                  </span>
+                  Alle ansehen &rarr;
                 </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-      )}
+              </div>
+              <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+                {section.products.map((product) => (
+                  <ProductCard key={product.id} product={product as any} />
+                ))}
+              </div>
+            </section>
+          );
+        }
 
-      {/* New Arrivals */}
-      {newArrivals.length > 0 && (
-        <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
-          <div className="flex items-end justify-between">
-            <div>
-              <h2 className="text-2xl font-semibold tracking-tight text-black sm:text-3xl">
-                Neuheiten
-              </h2>
-              <p className="mt-2 text-sm text-neutral-500">
-                Unsere neuesten Produkte
-              </p>
-            </div>
-            <Link
-              href="/products?sort=newest"
-              className="hidden text-sm font-medium text-neutral-500 transition-colors hover:text-black sm:block"
-            >
-              Alle ansehen &rarr;
-            </Link>
-          </div>
+        if (section.sectionType === "custom_3dprint") {
+          return (
+            <section key={i} className="border-y border-neutral-100 bg-neutral-50">
+              <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
+                <div className="flex flex-col items-center gap-10 lg:flex-row lg:items-center lg:gap-16">
+                  {/* Square image */}
+                  <div className="h-64 w-64 flex-shrink-0 overflow-hidden rounded-2xl shadow-md">
+                    <Image
+                      src="/3dprint.jpg"
+                      alt="Individueller 3D-Druck"
+                      width={256}
+                      height={256}
+                      className="h-full w-full object-cover"
+                    />
+                  </div>
+                  {/* Text */}
+                  <div className="flex-1">
+                    <span className="text-xs font-semibold uppercase tracking-widest text-neutral-400">
+                      Maßanfertigung
+                    </span>
+                    <h2 className="mt-3 text-3xl font-semibold tracking-tight text-black sm:text-4xl">
+                      {section.label}
+                    </h2>
+                    <p className="mt-4 text-base leading-relaxed text-neutral-600">
+                      Lassen Sie Ihre Idee Wirklichkeit werden. Wir fertigen präzise
+                      3D-Drucke nach Ihren Maßen und Vorgaben — vom einfachen Ersatzteil
+                      bis zum komplexen Modell.
+                    </p>
+                    <ul className="mt-4 space-y-1 text-sm text-neutral-500">
+                      <li className="flex items-center gap-2">
+                        <span className="h-1 w-1 rounded-full bg-neutral-400" />
+                        Preis nach Aufwand und Material
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="h-1 w-1 rounded-full bg-neutral-400" />
+                        Verschiedene Materialien &amp; Farben
+                      </li>
+                      <li className="flex items-center gap-2">
+                        <span className="h-1 w-1 rounded-full bg-neutral-400" />
+                        Schnelle Lieferzeiten
+                      </li>
+                    </ul>
+                    <div className="mt-6 flex items-center gap-4">
+                      <Link
+                        href="/custom-print"
+                        className="inline-flex h-12 items-center justify-center rounded-full bg-black px-8 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+                      >
+                        Anfrage stellen
+                      </Link>
+                      <span className="text-sm text-neutral-400">Preis auf Anfrage</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          );
+        }
 
-          <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-            {newArrivals.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+        if (section.sectionType === "categories_showcase" && allCategories.length > 0) {
+          return (
+            <section key={i} className="border-y border-neutral-100 bg-neutral-50">
+              <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
+                <div className="text-center">
+                  <h2 className="text-2xl font-semibold tracking-tight text-black sm:text-3xl">
+                    {section.label}
+                  </h2>
+                  <p className="mt-2 text-sm text-neutral-500">
+                    Finden Sie genau das, was Sie suchen
+                  </p>
+                </div>
+                <div className="mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {allCategories.map((cat) => (
+                    <Link
+                      key={cat.id}
+                      href={`/kategorie/${cat.slug}`}
+                      className="group flex flex-col justify-between rounded-xl border border-neutral-200 bg-white p-6 transition-all hover:border-neutral-300 hover:shadow-sm"
+                    >
+                      <div>
+                        <h3 className="text-base font-semibold text-black">{cat.name}</h3>
+                        {cat.description && (
+                          <p className="mt-2 text-sm leading-relaxed text-neutral-500 line-clamp-2">
+                            {cat.description}
+                          </p>
+                        )}
+                      </div>
+                      <span className="mt-4 text-xs font-medium text-neutral-400 transition-colors group-hover:text-black">
+                        Entdecken &rarr;
+                      </span>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </section>
+          );
+        }
 
-          <div className="mt-8 text-center sm:hidden">
-            <Link
-              href="/products?sort=newest"
-              className="text-sm font-medium text-neutral-500 transition-colors hover:text-black"
-            >
-              Alle ansehen &rarr;
-            </Link>
-          </div>
-        </section>
-      )}
+        return null;
+      })}
 
-      {/* If no products at all, show empty state */}
-      {featuredProducts.length === 0 && newArrivals.length === 0 && (
+      {/* Empty state */}
+      {!hasProducts && (
         <section className="mx-auto max-w-7xl px-4 py-24 text-center sm:px-6 lg:px-8">
-          <svg
-            className="mx-auto h-12 w-12 text-neutral-300"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1}
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"
-            />
+          <svg className="mx-auto h-12 w-12 text-neutral-300" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 01-2.247 2.118H6.622a2.25 2.25 0 01-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z" />
           </svg>
           <h2 className="mt-4 text-lg font-semibold text-black">
             Noch keine Produkte
