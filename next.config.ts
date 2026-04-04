@@ -1,19 +1,21 @@
 import type { NextConfig } from "next";
 
-const cspHeader = `
-  default-src 'self';
-  script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com;
-  style-src 'self' 'unsafe-inline';
-  img-src 'self' blob: data: https:;
-  font-src 'self' data:;
-  connect-src 'self' https://api.stripe.com https://chat-ai.academiccloud.de;
-  frame-src 'self' https://js.stripe.com https://hooks.stripe.com;
-  object-src 'none';
-  base-uri 'self';
-  form-action 'self';
-  frame-ancestors 'none';
-  upgrade-insecure-requests;
-`.replace(/\n/g, "");
+const isProd = process.env.NODE_ENV === "production";
+
+const cspHeader = [
+  "default-src 'self'",
+  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' blob: data: https:",
+  "font-src 'self' data:",
+  "connect-src 'self' https://api.stripe.com https://chat-ai.academiccloud.de",
+  "frame-src 'self' https://js.stripe.com https://hooks.stripe.com",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+  ...(isProd ? ["upgrade-insecure-requests"] : []),
+].join("; ");
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -38,10 +40,14 @@ const nextConfig: NextConfig = {
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
           },
-          {
-            key: "Strict-Transport-Security",
-            value: "max-age=63072000; includeSubDomains; preload",
-          },
+          ...(isProd
+            ? [
+                {
+                  key: "Strict-Transport-Security",
+                  value: "max-age=63072000; includeSubDomains; preload",
+                },
+              ]
+            : []),
           {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=()",
