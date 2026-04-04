@@ -1,9 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { telegramUsers, settings, orders, contactRequests, pageViews } from "@/lib/db/schema";
+import {
+  telegramUsers,
+  settings,
+  orders,
+  contactRequests,
+  pageViews,
+  products,
+  productVariants,
+} from "@/lib/db/schema";
 import { eq, sql, desc, and, gte } from "drizzle-orm";
 import { sendTelegramMessage } from "@/lib/telegram";
 import { getAiConfig } from "@/app/api/admin/ai/optimize/route";
+import { getHistory, pushMessage, resetHistory } from "@/lib/telegram/conversation";
 import OpenAI from "openai";
 
 async function getBotToken(): Promise<string | null> {
@@ -58,8 +67,16 @@ async function handleCommand(chatId: string, command: string, token: string): Pr
       "/latest\\_order — Letzte Bestellung\n" +
       "/visitors — Besucher heute\n" +
       "/requests — Neue Kontaktanfragen\n" +
+      "/reset — Konversation zurücksetzen\n" +
       "/help — Diese Hilfe\n\n" +
-      "Oder stellen Sie eine Frage in natürlicher Sprache!", token);
+      "Oder stellen Sie eine Frage in natürlicher Sprache — " +
+      "der Bot merkt sich den Kontext des Gesprächs (wird nach 2 h Inaktivität zurückgesetzt).", token);
+    return;
+  }
+
+  if (cmd === "/reset") {
+    resetHistory(chatId);
+    await sendTelegramMessage(chatId, "🔄 Konversation zurückgesetzt.", token);
     return;
   }
 
@@ -160,6 +177,72 @@ async function handleCommand(chatId: string, command: string, token: string): Pr
   await handleNaturalLanguage(chatId, command, token);
 }
 
+/** Build a live data snapshot for the system prompt. */
+async function gatherShopContext(): Promise<string> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const [openOrderRows, recentOrders, newRequests, visitorCount, lowStockVariants] = await Promise.all([
+    db.select({ count: sql<number>`count(*)` })
+      .from(orders)
+      .where(sql`${orders.status} NOT IN ('delivered', 'cancelled')`),
+    db.select().from(orders).orderBy(desc(orders.createdAt)).limit(5),
+    db.select({ count: sql<number>`count(*)` })
+      .from(contactRequests)
+      .where(eq(contactRequests.status, "new")),
+    db.select({ count: sql<number>`count(DISTINCT ${pageViews.sessionId})` })
+      .from(pageViews)
+      .where(gte(pageViews.createdAt, today)),
+    db.select({
+      productName: products.name,
+      variantName: productVariants.name,
+      sku: productVariants.sku,
+      stock: productVariants.stock,
+    })
+      .from(productVariants)
+      .innerJoin(products, eq(productVariants.productId, products.id))
+      .where(sql`${productVariants.stock} <= ${productVariants.lowStockThreshold} AND ${productVariants.active} = true`)
+      .limit(10),
+  ]);
+
+  const lines = [
+    `Offene Bestellungen: ${openOrderRows[0]?.count ?? 0}`,
+    `Neue Kontaktanfragen: ${newRequests[0]?.count ?? 0}`,
+    `Besucher heute: ${visitorCount[0]?.count ?? 0}`,
+    "",
+    "Letzte 5 Bestellungen:",
+    ...recentOrders.map(
+      (o) =>
+        `  • ${o.orderNumber} — ${o.status} — ${o.total}€ — ${new Date(o.createdAt).toLocaleDateString("de-DE")}`,
+    ),
+  ];
+
+  if (lowStockVariants.length > 0) {
+    lines.push("", "Varianten mit niedrigem Bestand:");
+    for (const v of lowStockVariants) {
+      lines.push(`  ⚠ ${v.productName} – ${v.variantName} (${v.sku}): ${v.stock} Stück`);
+    }
+  }
+
+  return lines.join("\n");
+}
+
+const SYSTEM_PROMPT_PREFIX =
+  "Du bist der interne Assistent des *3DPrintIt*-Shops — ein deutsches E-Commerce-Unternehmen für " +
+  "Modelleisenbahn-Zubehör und 3D-gedruckte Teile. " +
+  "Du sprichst ausschließlich mit dem Shopbetreiber oder Mitarbeitern (niemals mit Endkunden). " +
+  "Dein Gesprächspartner ist also immer ein Teammitglied, das den Shop betreibt.\n\n" +
+  "Deine Aufgaben:\n" +
+  "• Fragen zu Bestellungen, Lagerbestand, Kunden und Shop-Kennzahlen beantworten\n" +
+  "• Bei operativen Entscheidungen helfen (z. B. Versand, Retouren, Preisstrategie)\n" +
+  "• Zusammenfassungen und Analysen liefern\n" +
+  "• Proaktiv auf Probleme hinweisen (niedriger Bestand, offene Anfragen)\n\n" +
+  "Regeln:\n" +
+  "• Antworte immer auf Deutsch, kurz und sachlich.\n" +
+  "• Verwende Telegram-kompatibles Markdown.\n" +
+  "• Behandle den Gesprächspartner nie als Kunden — er/sie ist dein Kollege bzw. Chef.\n" +
+  "• Wenn du eine Frage nicht beantworten kannst, sag das ehrlich.\n\n";
+
 async function handleNaturalLanguage(chatId: string, question: string, token: string): Promise<void> {
   try {
     const config = await getAiConfig();
@@ -168,49 +251,44 @@ async function handleNaturalLanguage(chatId: string, question: string, token: st
       return;
     }
 
-    // Gather context data
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const context = await gatherShopContext();
+    const systemContent = SYSTEM_PROMPT_PREFIX + "Aktuelle Shop-Daten:\n" + context;
 
-    const [openOrders, recentOrders, newRequests, visitorCount] = await Promise.all([
-      db.select({ count: sql<number>`count(*)` }).from(orders).where(sql`${orders.status} NOT IN ('delivered', 'cancelled')`),
-      db.select().from(orders).orderBy(desc(orders.createdAt)).limit(5),
-      db.select({ count: sql<number>`count(*)` }).from(contactRequests).where(eq(contactRequests.status, "new")),
-      db.select({ count: sql<number>`count(DISTINCT ${pageViews.sessionId})` }).from(pageViews).where(gte(pageViews.createdAt, today)),
-    ]);
+    // Get / initialise conversation history for this chat
+    const history = getHistory(chatId);
 
-    const context = `
-Aktuelle Shop-Daten:
-- Offene Bestellungen: ${openOrders[0]?.count ?? 0}
-- Neue Kontaktanfragen: ${newRequests[0]?.count ?? 0}
-- Besucher heute: ${visitorCount[0]?.count ?? 0}
-- Letzte 5 Bestellungen: ${recentOrders.map(o => `${o.orderNumber} (${o.status}, ${o.total}€, ${new Date(o.createdAt).toLocaleDateString("de-DE")})`).join("; ")}
-    `.trim();
+    // If the history is empty (fresh or after reset), inject the system prompt
+    if (history.length === 0) {
+      pushMessage(chatId, { role: "system", content: systemContent });
+    } else {
+      // Update the system message with fresh data every turn
+      history[0] = { role: "system", content: systemContent };
+    }
+
+    // Append the new user message
+    pushMessage(chatId, { role: "user", content: question });
 
     const client = new OpenAI({ baseURL: config.baseURL, apiKey: config.apiKey });
     const response = await client.chat.completions.create({
       model: config.model,
-      messages: [
-        {
-          role: "system",
-          content:
-            "Du bist der 3DPrintIt Shop-Assistent im Telegram. Beantworte Fragen zum Shop kurz und hilfreich auf Deutsch. " +
-            "Du hast Zugriff auf folgende aktuelle Daten:\n\n" + context +
-            "\n\nAntworte in Markdown-Format (Telegram-kompatibel). Halte dich kurz.",
-        },
-        { role: "user", content: question },
-      ],
+      messages: [...history],
       temperature: 0.4,
-      max_tokens: 500,
+      max_tokens: 800,
       // @ts-expect-error — Qwen3 thinking model
       chat_template_kwargs: { enable_thinking: false },
     });
 
-    const answer = (response.choices[0]?.message as any)?.content || "Ich konnte die Frage leider nicht beantworten. Versuchen Sie /help.";
+    const answer =
+      (response.choices[0]?.message as any)?.content ||
+      "Ich konnte die Frage leider nicht beantworten. Versuche /help.";
+
+    // Store assistant reply in history
+    pushMessage(chatId, { role: "assistant", content: answer });
+
     await sendTelegramMessage(chatId, answer, token);
   } catch (err) {
     console.error("[telegram LLM]", err);
-    await sendTelegramMessage(chatId, "⚠️ Fehler bei der Verarbeitung. Versuchen Sie /help für Befehle.", token);
+    await sendTelegramMessage(chatId, "⚠️ Fehler bei der Verarbeitung. Versuche /help für Befehle.", token);
   }
 }
 

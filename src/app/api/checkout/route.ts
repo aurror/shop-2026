@@ -13,6 +13,7 @@ import {
 } from "@/lib/db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { addressSchema } from "@/lib/security";
+import { notifyTelegram } from "@/lib/telegram";
 import { generateOrderNumber } from "@/lib/security";
 import { getShippingConfig, calculateShippingFee } from "@/lib/shipping";
 import { sendTemplateEmail } from "@/lib/email";
@@ -319,6 +320,11 @@ export async function POST(request: NextRequest) {
             threshold: updatedVariant.lowStockThreshold,
           },
         });
+
+        notifyTelegram(
+          "orders",
+          `⚠️ *Niedriger Bestand*\n${item.productName} – ${item.variantName} (${item.variantSku})\nNur noch ${updatedVariant.stock} Stück`,
+        ).catch((e) => console.error("[telegram notify]", e));
       }
     }
 
@@ -350,6 +356,15 @@ export async function POST(request: NextRequest) {
         customerEmail: user[0].email,
       },
     });
+
+    // Notify Telegram (fire-and-forget)
+    notifyTelegram(
+      "orders",
+      `🛒 *Neue Bestellung ${orderNumber}*\n` +
+        `Kunde: ${user[0].name || user[0].email}\n` +
+        `Betrag: ${total.toFixed(2)} €\n` +
+        `Zahlung: ${paymentMethod === "bank_transfer" ? "Banküberweisung" : paymentMethod}`,
+    ).catch((e) => console.error("[telegram notify]", e));
 
     // Send emails based on payment method
     if (paymentMethod === "bank_transfer") {

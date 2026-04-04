@@ -4,6 +4,7 @@ import { orders, adminNotifications } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { constructWebhookEvent } from "@/lib/stripe";
 import { sendTemplateEmail } from "@/lib/email";
+import { notifyTelegram } from "@/lib/telegram";
 
 export async function POST(request: NextRequest) {
   try {
@@ -71,6 +72,14 @@ export async function POST(request: NextRequest) {
             message: `Zahlung für Bestellung ${order[0].orderNumber} über ${order[0].total} € erhalten.`,
             data: { orderId: order[0].id, orderNumber: order[0].orderNumber },
           });
+        }
+
+        // Notify Telegram
+        if (order.length) {
+          notifyTelegram(
+            "orders",
+            `💳 *Zahlung eingegangen*\nBestellung: ${order[0].orderNumber}\nBetrag: ${order[0].total} €`,
+          ).catch((e) => console.error("[telegram notify]", e));
         }
 
         console.log(`[Stripe Webhook] Order ${orderNumber} paid`);

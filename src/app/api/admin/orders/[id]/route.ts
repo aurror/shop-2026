@@ -5,6 +5,7 @@ import { orders, orderItems, users, adminNotifications } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
 import { sendTemplateEmail } from "@/lib/email";
 import { getDhlTrackingUrl } from "@/lib/shipping";
+import { notifyTelegram } from "@/lib/telegram";
 
 export async function GET(
   request: NextRequest,
@@ -165,6 +166,25 @@ export async function PUT(
           amount: existing.total,
         },
       });
+    }
+
+    // Notify Telegram about status changes
+    if (body.status && body.status !== existing.status) {
+      notifyTelegram(
+        "orders",
+        `📦 *Status-Update: ${existing.orderNumber}*\n` +
+          `${existing.status} → ${body.status}` +
+          (body.status === "shipped" && (body.trackingNumber || existing.trackingNumber)
+            ? `\nTracking: ${body.trackingNumber || existing.trackingNumber}`
+            : ""),
+      ).catch((e) => console.error("[telegram notify]", e));
+    }
+
+    if (body.paymentStatus === "paid" && existing.paymentStatus !== "paid") {
+      notifyTelegram(
+        "orders",
+        `💳 *Zahlung bestätigt: ${existing.orderNumber}*\nBetrag: ${existing.total} €`,
+      ).catch((e) => console.error("[telegram notify]", e));
     }
 
     // Create notification for general status changes
