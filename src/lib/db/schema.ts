@@ -753,6 +753,24 @@ export const telegramUsers = schema.table(
 // ---------------------------------------------------------------------------
 // Homepage recommendation rules
 // ---------------------------------------------------------------------------
+// Coupon attempt log
+// ---------------------------------------------------------------------------
+export const couponAttempts = schema.table(
+  "coupon_attempts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    code: text("code").notNull(),
+    valid: boolean("valid").default(false).notNull(),
+    subtotal: decimal("subtotal", { precision: 10, scale: 2 }),
+    discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }),
+    error: text("error"),
+    ip: text("ip"),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [index("coupon_attempts_code_idx").on(t.code), index("coupon_attempts_created_idx").on(t.createdAt)],
+);
+
+// ---------------------------------------------------------------------------
 export const homepageRules = schema.table("homepage_rules", {
   id: uuid("id").defaultRandom().primaryKey(),
   type: text("type").notNull(), // "manual" | "most_bought" | "on_sale" | "newest" | "category" | "low_stock"

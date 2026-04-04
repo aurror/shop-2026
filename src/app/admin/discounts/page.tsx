@@ -50,6 +50,9 @@ export default function AdminDiscountsPage() {
   const [deleting, setDeleting] = useState(false);
   const [productSales, setProductSales] = useState<any[]>([]);
   const [salesLoading, setSalesLoading] = useState(true);
+  const [couponAttempts, setCouponAttempts] = useState<any[]>([]);
+  const [couponStats, setCouponStats] = useState<{ total: number; valid: number; invalid: number } | null>(null);
+  const [attemptsLoading, setAttemptsLoading] = useState(true);
 
   const fetchDiscounts = useCallback(async (page = 1) => {
     setLoading(true);
@@ -82,10 +85,25 @@ export default function AdminDiscountsPage() {
     }
   }, []);
 
+  const fetchAttempts = useCallback(async () => {
+    setAttemptsLoading(true);
+    try {
+      const res = await fetch("/api/admin/coupon-attempts?limit=50");
+      if (res.ok) {
+        const data = await res.json();
+        setCouponAttempts(data.attempts || []);
+        setCouponStats(data.stats || null);
+      }
+    } catch { /* ignore */ } finally {
+      setAttemptsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchDiscounts(1);
     fetchProductSales();
-  }, [fetchDiscounts, fetchProductSales]);
+    fetchAttempts();
+  }, [fetchDiscounts, fetchProductSales, fetchAttempts]);
 
   const handleDelete = async () => {
     if (!deleteId) return;
@@ -326,6 +344,68 @@ export default function AdminDiscountsPage() {
               totalPages={pagination.totalPages}
               onPageChange={(page) => fetchDiscounts(page)}
             />
+          </div>
+        )}
+      </div>
+
+      {/* Coupon Attempts Log */}
+      <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-4">
+          <h2 className="text-sm font-semibold text-neutral-900">Code-Versuche (letzte 50)</h2>
+          {couponStats && (
+            <div className="flex items-center gap-4 text-xs text-neutral-500">
+              <span>Gesamt: <b className="text-neutral-900">{couponStats.total}</b></span>
+              <span className="text-green-600">✓ Gültig: <b>{couponStats.valid}</b></span>
+              <span className="text-red-500">✕ Ungültig: <b>{couponStats.invalid}</b></span>
+            </div>
+          )}
+        </div>
+        {attemptsLoading ? (
+          <div className="flex justify-center py-8"><LoadingSpinner size="md" /></div>
+        ) : couponAttempts.length === 0 ? (
+          <div className="px-6 py-8 text-center text-sm text-neutral-400">Noch keine Code-Versuche protokolliert.</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="admin-table w-full">
+              <thead>
+                <tr>
+                  <th>Code</th>
+                  <th>Status</th>
+                  <th className="text-right">Warenkorb</th>
+                  <th className="text-right">Rabatt</th>
+                  <th>Fehler</th>
+                  <th>Zeitpunkt</th>
+                </tr>
+              </thead>
+              <tbody>
+                {couponAttempts.map((a: any) => (
+                  <tr key={a.id}>
+                    <td>
+                      <span className="font-mono text-sm font-semibold text-neutral-900">{a.code}</span>
+                    </td>
+                    <td>
+                      {a.valid ? (
+                        <Badge variant="success">Gültig</Badge>
+                      ) : (
+                        <Badge variant="danger">Ungültig</Badge>
+                      )}
+                    </td>
+                    <td className="text-right text-sm text-neutral-600">
+                      {a.subtotal ? formatCurrency(parseFloat(a.subtotal)) : <span className="text-neutral-300">—</span>}
+                    </td>
+                    <td className="text-right text-sm text-neutral-600">
+                      {a.discountAmount ? formatCurrency(parseFloat(a.discountAmount)) : <span className="text-neutral-300">—</span>}
+                    </td>
+                    <td className="text-xs text-neutral-500">
+                      {a.error || <span className="text-neutral-300">—</span>}
+                    </td>
+                    <td className="text-xs text-neutral-500 whitespace-nowrap">
+                      {new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }).format(new Date(a.createdAt))}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>

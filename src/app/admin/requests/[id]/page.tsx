@@ -17,7 +17,8 @@ type ContactRequest = {
   email: string;
   phone: string | null;
   message: string;
-  files: string[] | null;
+  fileNames: string[] | null;
+  filePaths: string[] | null;
   status: string;
   spamScore: number | null;
   spamReason: string | null;
@@ -31,7 +32,8 @@ const STATUS_OPTIONS = [
   { value: "new", label: "Neu" },
   { value: "in_progress", label: "In Bearbeitung" },
   { value: "replied", label: "Beantwortet" },
-  { value: "closed", label: "Geschlossen" },
+  { value: "closed", label: "Erledigt" },
+  { value: "ignored", label: "Ignoriert" },
   { value: "spam", label: "Spam" },
 ];
 
@@ -138,15 +140,20 @@ export default function AdminRequestDetailPage({ params }: { params: Promise<{ i
           </div>
 
           {/* Files */}
-          {req.files && req.files.length > 0 && (
+          {req.fileNames && req.fileNames.length > 0 && (
             <div className="rounded-xl border border-neutral-200 bg-white p-6">
-              <h2 className="mb-4 text-lg font-semibold">Dateien</h2>
+              <h2 className="mb-4 text-lg font-semibold">Anhänge</h2>
               <ul className="space-y-2">
-                {req.files.map((file, i) => (
+                {req.fileNames.map((name, i) => (
                   <li key={i} className="flex items-center gap-2 text-sm">
                     <span className="text-neutral-400">📎</span>
-                    <a href={`/${file}`} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
-                      {file.split("/").pop()}
+                    <a
+                      href={`/api/admin/requests/${req.id}/file?name=${encodeURIComponent(name)}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      {name}
                     </a>
                   </li>
                 ))}

@@ -10,7 +10,7 @@ type ContactRequest = {
   email: string;
   phone: string | null;
   message: string;
-  files: string[] | null;
+  fileNames: string[] | null;
   status: string;
   spamScore: number | null;
   spamReason: string | null;
@@ -24,7 +24,8 @@ const STATUS_LABELS: Record<string, { label: string; cls: string }> = {
   new: { label: "Neu", cls: "bg-blue-100 text-blue-800" },
   in_progress: { label: "In Bearbeitung", cls: "bg-yellow-100 text-yellow-800" },
   replied: { label: "Beantwortet", cls: "bg-green-100 text-green-800" },
-  closed: { label: "Geschlossen", cls: "bg-neutral-200 text-neutral-600" },
+  closed: { label: "Erledigt", cls: "bg-neutral-200 text-neutral-600" },
+  ignored: { label: "Ignoriert", cls: "bg-neutral-100 text-neutral-400" },
   spam: { label: "Spam", cls: "bg-red-100 text-red-800" },
 };
 
@@ -60,6 +61,15 @@ export default function AdminRequestsPage() {
     setLoading(false);
   }, [typeFilter, statusFilter, page]);
 
+  const quickUpdate = async (id: string, status: string) => {
+    await fetch(`/api/admin/requests/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+    setRequests((prev) => prev.map((r) => r.id === id ? { ...r, status } : r));
+  };
+
   useEffect(() => {
     fetchRequests();
   }, [fetchRequests]);
@@ -94,7 +104,8 @@ export default function AdminRequestsPage() {
           <option value="new">Neu</option>
           <option value="in_progress">In Bearbeitung</option>
           <option value="replied">Beantwortet</option>
-          <option value="closed">Geschlossen</option>
+          <option value="closed">Erledigt</option>
+          <option value="ignored">Ignoriert</option>
           <option value="spam">Spam</option>
         </select>
       </div>
@@ -115,21 +126,33 @@ export default function AdminRequestsPage() {
                 <th className="px-4 py-3">Spam</th>
                 <th className="px-4 py-3">Datum</th>
                 <th className="px-4 py-3">Nachricht</th>
+                <th className="px-4 py-3">Aktionen</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-neutral-100">
               {requests.map((req) => {
                 const statusInfo = STATUS_LABELS[req.status] || { label: req.status, cls: "bg-neutral-100 text-neutral-600" };
+                const isOpen = req.status === "new" || req.status === "in_progress";
                 return (
                   <tr key={req.id} className="transition-colors hover:bg-neutral-50">
                     <td className="px-4 py-3">
-                      <Link href={`/admin/requests/${req.id}`} className="font-medium text-black hover:underline">
-                        {req.name}
-                      </Link>
-                      <div className="text-xs text-neutral-500">{req.email}</div>
+                      <div className="flex items-center gap-1.5">
+                        {isOpen && (
+                          <span className="h-2 w-2 shrink-0 rounded-full bg-blue-500" title="Offen" />
+                        )}
+                        <div>
+                          <Link href={`/admin/requests/${req.id}`} className="font-medium text-black hover:underline">
+                            {req.name}
+                          </Link>
+                          <div className="text-xs text-neutral-500">{req.email}</div>
+                        </div>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-xs">
-                      {TYPE_LABELS[req.type] || req.type}
+                      <div>{TYPE_LABELS[req.type] || req.type}</div>
+                      {req.fileNames && req.fileNames.length > 0 && (
+                        <div className="mt-0.5 text-neutral-400">📎 {req.fileNames.length}</div>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-block rounded-full px-2 py-0.5 text-xs font-medium ${statusInfo.cls}`}>
@@ -152,6 +175,28 @@ export default function AdminRequestsPage() {
                     </td>
                     <td className="max-w-xs truncate px-4 py-3 text-xs text-neutral-500">
                       {req.message.slice(0, 80)}{req.message.length > 80 ? "…" : ""}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-1.5">
+                        {req.status !== "closed" && req.status !== "replied" && (
+                          <button
+                            onClick={() => quickUpdate(req.id, "closed")}
+                            title="Als erledigt markieren"
+                            className="rounded px-2 py-1 text-xs font-medium text-green-700 hover:bg-green-50"
+                          >
+                            ✓ Erledigt
+                          </button>
+                        )}
+                        {req.status !== "ignored" && (
+                          <button
+                            onClick={() => quickUpdate(req.id, "ignored")}
+                            title="Ignorieren"
+                            className="rounded px-2 py-1 text-xs font-medium text-neutral-500 hover:bg-neutral-100"
+                          >
+                            ✕ Ignorieren
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );

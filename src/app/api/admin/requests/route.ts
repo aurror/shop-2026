@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { contactRequests, contactReplies } from "@/lib/db/schema";
+import { contactRequests } from "@/lib/db/schema";
 import { desc, eq, sql } from "drizzle-orm";
 
 export async function GET(request: NextRequest) {
@@ -11,8 +11,18 @@ export async function GET(request: NextRequest) {
   }
 
   const url = request.nextUrl;
-  const type = url.searchParams.get("type"); // custom_print | general | null (all)
-  const status = url.searchParams.get("status"); // new | in_progress | replied | closed | spam | null
+
+  // Quick pending count — used by the sidebar badge
+  if (url.searchParams.get("pendingCount") === "1") {
+    const [row] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(contactRequests)
+      .where(sql`${contactRequests.status} IN ('new', 'in_progress')`);
+    return NextResponse.json({ pendingCount: Number(row?.count ?? 0) });
+  }
+
+  const type = url.searchParams.get("type");
+  const status = url.searchParams.get("status");
   const page = parseInt(url.searchParams.get("page") || "1");
   const limit = 25;
   const offset = (page - 1) * limit;

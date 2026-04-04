@@ -16,14 +16,22 @@ interface AdminShellProps {
 export function AdminShell({ children, userName, userRole }: AdminShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const router = useRouter();
 
-  const fetchUnreadCount = useCallback(async () => {
+  const fetchCounts = useCallback(async () => {
     try {
-      const res = await fetch("/api/admin/notifications?limit=1");
-      if (res.ok) {
-        const data = await res.json();
+      const [notifRes, reqRes] = await Promise.all([
+        fetch("/api/admin/notifications?limit=1"),
+        fetch("/api/admin/requests?pendingCount=1"),
+      ]);
+      if (notifRes.ok) {
+        const data = await notifRes.json();
         setUnreadCount(data.unreadCount ?? 0);
+      }
+      if (reqRes.ok) {
+        const data = await reqRes.json();
+        setPendingRequestsCount(data.pendingCount ?? 0);
       }
     } catch {
       // Silently fail
@@ -31,10 +39,10 @@ export function AdminShell({ children, userName, userRole }: AdminShellProps) {
   }, []);
 
   useEffect(() => {
-    fetchUnreadCount();
-    const interval = setInterval(fetchUnreadCount, 30000);
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000);
     return () => clearInterval(interval);
-  }, [fetchUnreadCount]);
+  }, [fetchCounts]);
 
   const handleLogout = async () => {
     try {
@@ -55,6 +63,7 @@ export function AdminShell({ children, userName, userRole }: AdminShellProps) {
         <div className="flex h-screen overflow-hidden bg-neutral-50">
           <AdminSidebar
             unreadCount={unreadCount}
+            pendingRequestsCount={pendingRequestsCount}
             isOpen={sidebarOpen}
             onClose={() => setSidebarOpen(false)}
           />

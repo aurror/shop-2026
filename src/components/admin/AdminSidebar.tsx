@@ -6,6 +6,7 @@ import { useLocale } from "./LocaleContext";
 
 interface AdminSidebarProps {
   unreadCount: number;
+  pendingRequestsCount: number;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -155,7 +156,7 @@ function NavIcon({ name }: { name: string }) {
   }
 }
 
-export function AdminSidebar({ unreadCount, isOpen, onClose }: AdminSidebarProps) {
+export function AdminSidebar({ unreadCount, pendingRequestsCount, isOpen, onClose }: AdminSidebarProps) {
   const pathname = usePathname();
   const { t } = useLocale();
 
@@ -237,6 +238,16 @@ export function AdminSidebar({ unreadCount, isOpen, onClose }: AdminSidebarProps
                             `}
                           >
                             {unreadCount > 99 ? "99+" : unreadCount}
+                          </span>
+                        )}
+                        {item.key === "requests" && pendingRequestsCount > 0 && (
+                          <span
+                            className={`
+                              inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs font-semibold
+                              ${active ? "bg-white text-blue-600" : "bg-blue-500 text-white"}
+                            `}
+                          >
+                            {pendingRequestsCount > 99 ? "99+" : pendingRequestsCount}
                           </span>
                         )}
                       </Link>
