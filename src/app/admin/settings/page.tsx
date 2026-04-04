@@ -8,7 +8,7 @@ import { Textarea } from "@/components/shared/Textarea";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/components/shared/Toast";
 
-type TabKey = "general" | "shipping" | "payment" | "email" | "legal" | "ai" | "backup" | "roles";
+type TabKey = "general" | "shipping" | "payment" | "email" | "legal" | "ai" | "telegram" | "backup" | "roles";
 
 interface Tab {
   key: TabKey;
@@ -22,6 +22,7 @@ const tabs: Tab[] = [
   { key: "email", labelKey: "emailSettings" },
   { key: "legal", labelKey: "legal" },
   { key: "ai", labelKey: "ai" },
+  { key: "telegram", labelKey: "telegram" },
   { key: "backup", labelKey: "backupSettings" },
   { key: "roles", labelKey: "roleManagement" },
 ];
@@ -39,6 +40,7 @@ const tabSettingKeys: Record<TabKey, string[]> = {
     "ai_title_instructions", "ai_description_instructions", "ai_related_instructions",
   ],
   backup: ["backup_auto_enabled", "backup_schedule", "backup_s3_bucket", "backup_s3_region", "backup_s3_key", "backup_s3_secret", "backup_retention_days"],
+  telegram: ["telegram_bot_token"],
   roles: [],
 };
 
@@ -89,6 +91,7 @@ const settingLabels: Record<string, { de: string; en: string }> = {
   backup_s3_key: { de: "S3 Access Key", en: "S3 Access Key" },
   backup_s3_secret: { de: "S3 Secret Key", en: "S3 Secret Key" },
   backup_retention_days: { de: "Aufbewahrung (Tage)", en: "Retention (Days)" },
+  telegram_bot_token: { de: "Telegram Bot Token", en: "Telegram Bot Token" },
 };
 
 const booleanSettings = new Set([
@@ -119,6 +122,7 @@ const secretSettings = new Set([
   "email_smtp_pass",
   "ai_api_key",
   "backup_s3_secret",
+  "telegram_bot_token",
 ]);
 
 const selectSettings: Record<string, { label: string; value: string }[]> = {
@@ -397,6 +401,14 @@ export default function AdminSettingsPage() {
                     {["ai_title_instructions", "ai_description_instructions", "ai_related_instructions"].map((k) => renderSettingField(k))}
                   </div>
                 </div>
+              ) : activeTab === "telegram" ? (
+                <TelegramTabContent
+                  renderSettingField={renderSettingField}
+                  handleSave={handleSave}
+                  saving={saving}
+                  locale={locale}
+                  t={t}
+                />
               ) : (
                 <div className="space-y-4">
                   {tabSettingKeys[activeTab].map((key) => renderSettingField(key))}
@@ -418,6 +430,169 @@ export default function AdminSettingsPage() {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
+
+// Telegram tab — bot token + user management
+function TelegramTabContent({
+  renderSettingField,
+  handleSave,
+  saving,
+  locale,
+  t,
+}: {
+  renderSettingField: (key: string) => React.ReactNode;
+  handleSave: () => void;
+  saving: boolean;
+  locale: string;
+  t: (key: any) => string;
+}) {
+  const [telegramUsers, setTelegramUsers] = useState<any[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [webhookInfo, setWebhookInfo] = useState<any>(null);
+  const [settingWebhook, setSettingWebhook] = useState(false);
+  const [webhookMsg, setWebhookMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch("/api/admin/telegram-users")
+      .then((r) => r.ok ? r.json() : { users: [] })
+      .then((data) => setTelegramUsers(data.users || []))
+      .finally(() => setLoadingUsers(false));
+
+    // Check current webhook status
+    fetch("/api/telegram/setup")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data?.result) setWebhookInfo(data.result); })
+      .catch(() => {});
+  }, []);
+
+  const toggleAck = async (chatId: string, acknowledged: boolean) => {
+    const res = await fetch("/api/admin/telegram-users", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatId, acknowledged }),
+    });
+    if (res.ok) {
+      setTelegramUsers((prev) =>
+        prev.map((u) => (u.chatId === chatId ? { ...u, acknowledged } : u)),
+      );
+    }
+  };
+
+  const setupWebhook = async () => {
+    setSettingWebhook(true);
+    setWebhookMsg(null);
+    const host = window.location.origin;
+    const res = await fetch("/api/telegram/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ host }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      setWebhookMsg(locale === "en" ? "Webhook set successfully!" : "Webhook erfolgreich gesetzt!");
+      setWebhookInfo({ url: `${host}/api/telegram` });
+    } else {
+      setWebhookMsg(data.description || data.error || "Fehler");
+    }
+    setSettingWebhook(false);
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Bot Token */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+          {locale === "en" ? "Bot Configuration" : "Bot-Konfiguration"}
+        </h3>
+        <p className="text-xs text-neutral-500">
+          {locale === "en"
+            ? "Get a bot token from @BotFather on Telegram, paste it here, save, then click 'Set Webhook'."
+            : "Bot-Token von @BotFather auf Telegram holen, hier eintragen, speichern, dann 'Webhook setzen' klicken."}
+        </p>
+        {renderSettingField("telegram_bot_token")}
+        <div className="flex items-center justify-between border-t border-neutral-100 pt-4">
+          <Button variant="primary" size="md" loading={saving} onClick={handleSave}>
+            {t("save")}
+          </Button>
+          <Button
+            variant="secondary"
+            size="md"
+            loading={settingWebhook}
+            onClick={setupWebhook}
+          >
+            {locale === "en" ? "Set Webhook" : "Webhook setzen"}
+          </Button>
+        </div>
+        {webhookMsg && (
+          <p className={`text-sm ${webhookMsg.includes("erfolg") || webhookMsg.includes("success") ? "text-green-600" : "text-red-600"}`}>
+            {webhookMsg}
+          </p>
+        )}
+        {webhookInfo?.url && (
+          <div className="rounded-lg bg-neutral-50 px-3 py-2 text-xs text-neutral-500">
+            {locale === "en" ? "Active webhook:" : "Aktiver Webhook:"}{" "}
+            <span className="font-mono text-neutral-700">{webhookInfo.url}</span>
+            {webhookInfo.last_error_message && (
+              <span className="ml-2 text-red-500">⚠ {webhookInfo.last_error_message}</span>
+            )}
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-neutral-100" />
+
+      {/* Telegram Users */}
+      <div className="space-y-4">
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+          {locale === "en" ? "Connected Users" : "Verbundene Benutzer"}
+        </h3>
+        <p className="text-xs text-neutral-500">
+          {locale === "en"
+            ? "Users who sent /start to the bot. Acknowledge them to grant access to bot commands and notifications."
+            : "Benutzer, die /start an den Bot gesendet haben. Bestätigen Sie sie, um Zugriff auf Bot-Befehle und Benachrichtigungen zu gewähren."}
+        </p>
+        {loadingUsers ? (
+          <div className="flex justify-center py-6"><LoadingSpinner /></div>
+        ) : telegramUsers.length === 0 ? (
+          <p className="text-sm text-neutral-400">
+            {locale === "en" ? "No users yet." : "Noch keine Benutzer."}
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {telegramUsers.map((user: any) => (
+              <div
+                key={user.chatId}
+                className="flex items-center justify-between rounded-lg border border-neutral-200 px-4 py-3"
+              >
+                <div>
+                  <p className="text-sm font-medium">
+                    {user.firstName || user.username || user.chatId}
+                    {user.username && <span className="ml-1 text-xs text-neutral-400">@{user.username}</span>}
+                  </p>
+                  <p className="text-xs text-neutral-500">
+                    Chat ID: {user.chatId}
+                    {user.isGroup && " (Gruppe)"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => toggleAck(user.chatId, !user.acknowledged)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+                    user.acknowledged
+                      ? "bg-green-100 text-green-800 hover:bg-red-100 hover:text-red-800"
+                      : "bg-neutral-100 text-neutral-600 hover:bg-green-100 hover:text-green-800"
+                  }`}
+                >
+                  {user.acknowledged
+                    ? (locale === "en" ? "Revoke" : "Widerrufen")
+                    : (locale === "en" ? "Acknowledge" : "Bestätigen")}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

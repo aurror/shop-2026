@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 30" role="img" aria-label="Visa">
+  <rect width="48" height="30" rx="4" fill="#1A1F71"/>
+  <!-- VISA wordmark: V-I-S-A in white italic bold using paths -->
+  <!-- Rendered as a stylised italic text block -->
+  <text
+    x="24" y="21"
+    text-anchor="middle"
+    font-family="Arial Black, Arial, sans-serif"
+    font-weight="900"
+    font-style="italic"
+    font-size="14"
+    fill="white"
+    letter-spacing="0.5"
+  >VISA</text>
+</svg>

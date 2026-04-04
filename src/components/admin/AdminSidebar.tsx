@@ -14,6 +14,7 @@ const navItems = [
   { key: "dashboard" as const, href: "/admin", icon: "grid" },
   { key: "orders" as const, href: "/admin/orders", icon: "package" },
   { key: "returns" as const, href: "/admin/returns", icon: "undo" },
+  { key: "requests" as const, href: "/admin/requests", icon: "inbox" },
   { key: "products" as const, href: "/admin/products", icon: "box" },
   { key: "customers" as const, href: "/admin/customers", icon: "users" },
   { key: "analytics" as const, href: "/admin/analytics", icon: "chart" },
@@ -100,6 +101,12 @@ function NavIcon({ name }: { name: string }) {
       return (
         <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+        </svg>
+      );
+    case "inbox":
+      return (
+        <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h2.21a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859m-17.5 0V4.875c0-.621.504-1.125 1.125-1.125h15.25c.621 0 1.125.504 1.125 1.125v8.625m-17.5 0v4.125c0 .621.504 1.125 1.125 1.125h15.25c.621 0 1.125-.504 1.125-1.125V13.5" />
         </svg>
       );
     default:

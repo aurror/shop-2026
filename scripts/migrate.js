@@ -14,6 +14,9 @@ async function migrate() {
 
     // Drop all existing tables in order (respecting foreign keys)
     const dropOrder = [
+      "contact_replies",
+      "contact_requests",
+      "telegram_users",
       "order_discounts",
       "order_status_history",
       "email_queue",
@@ -379,6 +382,50 @@ async function migrate() {
       CREATE INDEX IF NOT EXISTS "returns_customer_idx" ON "${SCHEMA}"."order_returns" ("customer_id");
     `);
 
+    // Contact requests & replies
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS "${SCHEMA}"."contact_requests" (
+        "id" uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+        "type" text NOT NULL,
+        "name" text NOT NULL,
+        "email" text NOT NULL,
+        "phone" text,
+        "message" text NOT NULL,
+        "file_names" jsonb,
+        "file_paths" jsonb,
+        "status" text NOT NULL DEFAULT 'new',
+        "spam_score" integer,
+        "spam_reason" text,
+        "admin_notes" text,
+        "error_message" text,
+        "created_at" timestamp NOT NULL DEFAULT now(),
+        "updated_at" timestamp NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS "contact_requests_status_idx" ON "${SCHEMA}"."contact_requests" ("status");
+      CREATE INDEX IF NOT EXISTS "contact_requests_type_idx" ON "${SCHEMA}"."contact_requests" ("type");
+
+      CREATE TABLE IF NOT EXISTS "${SCHEMA}"."contact_replies" (
+        "id" uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+        "request_id" uuid NOT NULL REFERENCES "${SCHEMA}"."contact_requests"("id") ON DELETE CASCADE,
+        "message" text NOT NULL,
+        "sent_by" text NOT NULL,
+        "created_at" timestamp NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS "contact_replies_request_idx" ON "${SCHEMA}"."contact_replies" ("request_id");
+
+      CREATE TABLE IF NOT EXISTS "${SCHEMA}"."telegram_users" (
+        "id" uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+        "chat_id" text NOT NULL UNIQUE,
+        "username" text,
+        "first_name" text,
+        "is_group" boolean NOT NULL DEFAULT false,
+        "acknowledged" boolean NOT NULL DEFAULT false,
+        "notify_orders" boolean NOT NULL DEFAULT true,
+        "notify_requests" boolean NOT NULL DEFAULT true,
+        "created_at" timestamp NOT NULL DEFAULT now()
+      );
+    `);
+
     // Insert default settings
     await client.query(`
       INSERT INTO "${SCHEMA}"."settings" ("key", "value") VALUES
@@ -410,7 +457,8 @@ async function migrate() {
         ('impressum_content', '"<p>Angaben gem&auml;&szlig; &sect; 5 TMG</p><p>Bitte f&uuml;llen Sie Ihr Impressum aus.</p>"'),
         ('datenschutz_content', '"<p>Datenschutzerkl&auml;rung - Bitte konfigurieren Sie diese Seite.</p>"'),
         ('agb_content', '"<p>Allgemeine Gesch&auml;ftsbedingungen - Bitte konfigurieren Sie diese Seite.</p>"'),
-        ('widerruf_content', '"<p>Widerrufsbelehrung - Bitte konfigurieren Sie diese Seite.</p>"')
+        ('widerruf_content', '"<p>Widerrufsbelehrung - Bitte konfigurieren Sie diese Seite.</p>"'),
+        ('telegram_bot_token', '""')
       ON CONFLICT ("key") DO NOTHING;
     `);
 

@@ -83,7 +83,7 @@ export const productSchema = z.object({
   description: z.string().optional(),
   descriptionHtml: z.string().optional(),
   basePrice: z.string().regex(/^\d+(\.\d{1,2})?$/),
-  compareAtPrice: z.string().regex(/^\d+(\.\d{1,2})?$/).optional().nullable(),
+  compareAtPrice: z.string().transform(v => v === "" ? null : v).pipe(z.string().regex(/^\d+(\.\d{1,2})?$/).nullable()).optional(),
   categoryId: z.string().uuid().optional().nullable(),
   weight: z.string().optional(),
   featured: z.boolean().optional(),

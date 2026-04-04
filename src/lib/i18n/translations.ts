@@ -16,6 +16,7 @@ const translations = {
     aiSuggestions: "KI-Vorschläge",
     roles: "Rollen",
     returns: "Retouren",
+    requests: "Anfragen",
     logout: "Abmelden",
 
     // Dashboard
@@ -100,6 +101,7 @@ const translations = {
     emailSettings: "E-Mail",
     legal: "Rechtliches",
     ai: "KI-Konfiguration",
+    telegram: "Telegram",
     backupSettings: "Backup",
     roleManagement: "Rollenverwaltung",
     storeName: "Shopname",
@@ -177,6 +179,7 @@ const translations = {
     aiSuggestions: "AI Suggestions",
     roles: "Roles",
     returns: "Returns",
+    requests: "Requests",
     logout: "Logout",
 
     // Dashboard
@@ -261,6 +264,7 @@ const translations = {
     emailSettings: "Email",
     legal: "Legal",
     ai: "AI Configuration",
+    telegram: "Telegram",
     backupSettings: "Backup",
     roleManagement: "Role Management",
     storeName: "Store Name",

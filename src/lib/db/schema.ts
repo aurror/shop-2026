@@ -678,3 +678,72 @@ export const userRoleAssignmentsRelations = relations(
     }),
   })
 );
+
+// ---------------------------------------------------------------------------
+// Contact / Custom-print requests
+// ---------------------------------------------------------------------------
+export const contactRequests = schema.table(
+  "contact_requests",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    type: text("type").notNull(), // 'custom_print' | 'general'
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    phone: text("phone"),
+    message: text("message").notNull(),
+    fileNames: jsonb("file_names").$type<string[]>(),
+    filePaths: jsonb("file_paths").$type<string[]>(),
+    status: text("status").notNull().default("new"), // new, in_progress, replied, closed, spam
+    spamScore: integer("spam_score"), // 0-100, set by LLM
+    spamReason: text("spam_reason"),
+    adminNotes: text("admin_notes"),
+    errorMessage: text("error_message"), // set if request submission had an issue
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [index("contact_requests_status_idx").on(t.status), index("contact_requests_type_idx").on(t.type)],
+);
+
+export const contactReplies = schema.table(
+  "contact_replies",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    requestId: uuid("request_id")
+      .references(() => contactRequests.id, { onDelete: "cascade" })
+      .notNull(),
+    message: text("message").notNull(),
+    sentBy: text("sent_by").notNull(), // admin email or name
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [index("contact_replies_request_idx").on(t.requestId)],
+);
+
+export const contactRequestsRelations = relations(contactRequests, ({ many }) => ({
+  replies: many(contactReplies),
+}));
+
+export const contactRepliesRelations = relations(contactReplies, ({ one }) => ({
+  request: one(contactRequests, {
+    fields: [contactReplies.requestId],
+    references: [contactRequests.id],
+  }),
+}));
+
+// ---------------------------------------------------------------------------
+// Telegram bot
+// ---------------------------------------------------------------------------
+export const telegramUsers = schema.table(
+  "telegram_users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    chatId: text("chat_id").notNull().unique(),
+    username: text("username"),
+    firstName: text("first_name"),
+    isGroup: boolean("is_group").default(false).notNull(),
+    acknowledged: boolean("acknowledged").default(false).notNull(),
+    notifyOrders: boolean("notify_orders").default(true).notNull(),
+    notifyRequests: boolean("notify_requests").default(true).notNull(),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (t) => [uniqueIndex("telegram_users_chat_id_idx").on(t.chatId)],
+);

@@ -61,6 +61,7 @@ export function Header({ userName, isLoggedIn }: HeaderProps) {
 
   const navLinks = [
     { href: "/products", label: "Produkte" },
+    { href: "/custom-print", label: "Maßanfertigung" },
   ];
 
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + "/");

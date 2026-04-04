@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 30" role="img" aria-label="Mastercard">
+  <!-- left (red) circle -->
+  <circle cx="17" cy="15" r="10" fill="#EB001B"/>
+  <!-- right (orange) circle -->
+  <circle cx="31" cy="15" r="10" fill="#F79E1B"/>
+  <!-- overlap lens: intersection x=24, y=15±sqrt(100-49)=15±7.14 -->
+  <path d="M24,7.86 A10,10 0 0,1 24,22.14 A10,10 0 0,0 24,7.86 Z" fill="#FF5F00"/>
+</svg>

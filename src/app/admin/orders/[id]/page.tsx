@@ -11,6 +11,7 @@ import { Select } from "@/components/shared/Select";
 import { Textarea } from "@/components/shared/Textarea";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/components/shared/Toast";
+import { DhlTrackingWidget } from "@/components/shared/DhlTrackingWidget";
 
 const statusVariant: Record<string, "success" | "warning" | "danger" | "info" | "default"> = {
   pending: "warning",
@@ -303,15 +304,10 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
               >
                 {t("save")}
               </Button>
-              {order.trackingUrl && (
-                <a
-                  href={order.trackingUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="block text-center text-xs font-medium text-neutral-500 hover:text-neutral-900 hover:underline"
-                >
-                  DHL Tracking &rarr;
-                </a>
+              {order.trackingNumber && (
+                <div className="pt-1">
+                  <DhlTrackingWidget trackingNumber={order.trackingNumber} />
+                </div>
               )}
             </div>
           </div>

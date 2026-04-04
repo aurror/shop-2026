@@ -8,6 +8,7 @@ import { Button } from "@/components/shared/Button";
 import { Badge } from "@/components/shared/Badge";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { ORDER_STATUSES } from "@/types";
+import { DhlTrackingWidget } from "@/components/shared/DhlTrackingWidget";
 
 interface OrderItem {
   id: string;
@@ -343,30 +344,9 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
 
       {/* Tracking */}
       {order.trackingNumber && (
-        <div className="mb-8 rounded-xl border border-neutral-200 p-5">
-          <h2 className="text-sm font-semibold text-neutral-900">Sendungsverfolgung</h2>
-          <div className="mt-2 flex items-center gap-3">
-            <p className="font-mono text-sm text-neutral-700">{order.trackingNumber}</p>
-            {order.trackingUrl ? (
-              <a
-                href={order.trackingUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-medium text-neutral-900 underline hover:text-black"
-              >
-                Bei DHL verfolgen
-              </a>
-            ) : (
-              <a
-                href={`https://www.dhl.de/de/privatkunden/pakete-empfangen/verfolgen.html?piececode=${order.trackingNumber}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs font-medium text-neutral-900 underline hover:text-black"
-              >
-                Bei DHL verfolgen
-              </a>
-            )}
-          </div>
+        <div className="mb-8">
+          <h2 className="mb-3 text-sm font-semibold text-neutral-900">Sendungsverfolgung</h2>
+          <DhlTrackingWidget trackingNumber={order.trackingNumber} />
         </div>
       )}
 
