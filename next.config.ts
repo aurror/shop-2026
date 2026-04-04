@@ -19,6 +19,7 @@ const cspHeader = [
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  allowedDevOrigins: ["192.168.178.40"],
   async headers() {
     return [
       {
