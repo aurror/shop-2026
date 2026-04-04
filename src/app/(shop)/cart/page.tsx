@@ -8,8 +8,7 @@ import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { EmptyState } from "@/components/shared/EmptyState";
-import { getGuestCart, saveGuestCart, clearGuestCart, getGuestCartCount } from "@/components/shop/CartContext";
-import { useCart } from "@/components/shop/CartContext";
+import { getGuestCart, saveGuestCart, clearGuestCart, getGuestCartCount, useCart, type GuestCartItem } from "@/components/shop/CartContext";
 
 interface CartItemData {
   id: string;
@@ -66,8 +65,10 @@ export default function CartPage() {
     cartItemId: string; productName: string; variantName: string;
     type: "stock_reduced" | "out_of_stock"; requestedQty: number; availableStock: number;
   }>>([]);
-  const [notifyVariantId, setNotifyVariantId] = useState<string | null>(null);
+  const { setCartCount } = useCart();
+  const [isGuest, setIsGuest] = useState(false);
   const [notifyEmail, setNotifyEmail] = useState("");
+  const [notifyVariantId, setNotifyVariantId] = useState<string | null>(null);
   const [notifyLoading, setNotifyLoading] = useState(false);
   const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
 
@@ -76,6 +77,7 @@ export default function CartPage() {
       const res = await fetch("/api/cart");
       if (res.status === 401) {
         // Not logged in — show guest cart from localStorage
+        setIsGuest(true);
         const guestItems = getGuestCart();
         const items: CartItemData[] = guestItems.map((g) => ({
           id: `guest-${g.variantId}`,
@@ -103,6 +105,7 @@ export default function CartPage() {
         return data;
       }
       if (!res.ok) throw new Error();
+      setIsGuest(false);
       const data: CartData = await res.json();
       setCart(data);
       return data;
@@ -146,14 +149,16 @@ export default function CartPage() {
       const data = await fetchCart();
       if (data && data.items.length > 0) {
         await fetchShipping(data);
-        // Validate stock
-        try {
-          const vRes = await fetch("/api/cart/validate");
-          if (vRes.ok) {
-            const vData = await vRes.json();
-            setStockWarnings(vData.warnings || []);
-          }
-        } catch { /* ignore */ }
+        // Only validate stock for logged-in users
+        if (!data.items[0]?.id.startsWith("guest-")) {
+          try {
+            const vRes = await fetch("/api/cart/validate");
+            if (vRes.ok) {
+              const vData = await vRes.json();
+              setStockWarnings(vData.warnings || []);
+            }
+          } catch { /* ignore */ }
+        }
       }
       setLoading(false);
     })();
@@ -163,6 +168,17 @@ export default function CartPage() {
     if (quantity < 1) return;
     setUpdatingId(cartItemId);
     try {
+      if (cartItemId.startsWith("guest-")) {
+        // Update localStorage guest cart
+        const variantId = cartItemId.replace("guest-", "");
+        const guestCart = getGuestCart();
+        const idx = guestCart.findIndex((i) => i.variantId === variantId);
+        if (idx >= 0) { guestCart[idx].quantity = quantity; saveGuestCart(guestCart); }
+        setCartCount(getGuestCartCount());
+        const data = await fetchCart();
+        if (data) await fetchShipping(data);
+        return;
+      }
       const res = await fetch("/api/cart", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -183,6 +199,15 @@ export default function CartPage() {
   const removeItem = async (cartItemId: string) => {
     setRemovingId(cartItemId);
     try {
+      if (cartItemId.startsWith("guest-")) {
+        const variantId = cartItemId.replace("guest-", "");
+        const guestCart = getGuestCart().filter((i) => i.variantId !== variantId);
+        saveGuestCart(guestCart);
+        setCartCount(getGuestCartCount());
+        const data = await fetchCart();
+        if (data) await fetchShipping(data);
+        return;
+      }
       const res = await fetch(`/api/cart?id=${cartItemId}`, { method: "DELETE" });
       if (!res.ok) {
         const data = await res.json();
@@ -562,14 +587,33 @@ export default function CartPage() {
             </div>
             <p className="mt-1 text-right text-xs text-neutral-500">inkl. MwSt.</p>
 
-            <Button
-              variant="primary"
-              size="lg"
-              className="mt-6 w-full"
-              onClick={() => router.push("/checkout")}
-            >
-              Zur Kasse
-            </Button>
+            {isGuest ? (
+              <div className="mt-6 rounded-xl border border-neutral-200 bg-white p-4 text-center">
+                <p className="text-sm font-medium text-neutral-900">Zum Bezahlen anmelden</p>
+                <p className="mt-1 text-xs text-neutral-500">Ihr Warenkorb wird nach der Anmeldung übernommen.</p>
+                <Link
+                  href="/auth/login?callbackUrl=/checkout"
+                  className="mt-3 block w-full rounded-full bg-neutral-900 px-4 py-2.5 text-center text-sm font-medium text-white transition-colors hover:bg-neutral-700"
+                >
+                  Anmelden & zur Kasse
+                </Link>
+                <Link
+                  href="/auth/register?callbackUrl=/checkout"
+                  className="mt-2 block text-xs text-neutral-500 underline hover:text-neutral-700"
+                >
+                  Noch kein Konto? Registrieren
+                </Link>
+              </div>
+            ) : (
+              <Button
+                variant="primary"
+                size="lg"
+                className="mt-6 w-full"
+                onClick={() => router.push("/checkout")}
+              >
+                Zur Kasse
+              </Button>
+            )}
 
             <Link
               href="/products"

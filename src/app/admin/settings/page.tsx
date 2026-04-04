@@ -32,7 +32,7 @@ const tabs: Tab[] = [
 const tabSettingKeys: Record<TabKey, string[]> = {
   general: ["store_name", "store_email", "store_phone", "store_address", "store_currency", "store_timezone"],
   shipping: ["shipping_base_fee", "shipping_per_kg", "free_shipping_threshold", "shipping_countries", "shipping_provider"],
-  payment: ["payment_stripe_enabled", "payment_klarna_enabled", "payment_bank_transfer_enabled", "payment_stripe_key", "payment_stripe_secret"],
+  payment: ["payment_stripe_enabled", "payment_klarna_enabled", "payment_bank_transfer_enabled", "payment_stripe_key", "payment_stripe_secret", "checkout_reservation_minutes"],
   email: ["email_from_address", "email_from_name", "email_smtp_host", "email_smtp_port", "email_smtp_user", "email_smtp_pass"],
   legal: ["legal_imprint", "legal_privacy", "legal_terms", "legal_revocation"],
   ai: [
@@ -63,6 +63,7 @@ const settingLabels: Record<string, { de: string; en: string }> = {
   payment_bank_transfer_enabled: { de: "Banküberweisung aktiviert", en: "Bank Transfer Enabled" },
   payment_stripe_key: { de: "Stripe Public Key", en: "Stripe Public Key" },
   payment_stripe_secret: { de: "Stripe Secret Key", en: "Stripe Secret Key" },
+  checkout_reservation_minutes: { de: "Checkout-Reservierung (Minuten)", en: "Checkout Reservation (minutes)" },
   email_from_address: { de: "Absender E-Mail", en: "From Email" },
   email_from_name: { de: "Absender Name", en: "From Name" },
   email_smtp_host: { de: "SMTP Host", en: "SMTP Host" },

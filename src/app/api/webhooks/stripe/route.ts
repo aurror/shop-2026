@@ -1,10 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { orders, adminNotifications } from "@/lib/db/schema";
-import { eq } from "drizzle-orm";
+import { orders, adminNotifications, checkoutReservations, productVariants } from "@/lib/db/schema";
+import { eq, and, isNull, sql } from "drizzle-orm";
 import { constructWebhookEvent } from "@/lib/stripe";
 import { sendTemplateEmail } from "@/lib/email";
 import { notifyTelegram } from "@/lib/telegram";
+
+async function releaseReservations(orderId: string) {
+  await db
+    .update(checkoutReservations)
+    .set({ releasedAt: new Date() })
+    .where(and(eq(checkoutReservations.orderId, orderId), isNull(checkoutReservations.releasedAt)));
+}
+
+async function fulfillReservations(orderId: string) {
+  const reservations = await db
+    .select()
+    .from(checkoutReservations)
+    .where(and(eq(checkoutReservations.orderId, orderId), isNull(checkoutReservations.releasedAt)));
+
+  for (const res of reservations) {
+    const [updatedVariant] = await db
+      .update(productVariants)
+      .set({ stock: sql`${productVariants.stock} - ${res.quantity}` })
+      .where(eq(productVariants.id, res.variantId))
+      .returning({ stock: productVariants.stock, lowStockThreshold: productVariants.lowStockThreshold });
+
+    if (updatedVariant && updatedVariant.stock <= updatedVariant.lowStockThreshold) {
+      await db.insert(adminNotifications).values({
+        type: "low_stock",
+        title: "Niedriger Bestand",
+        message: `Variante ${res.variantId} hat nur noch ${updatedVariant.stock} Stück auf Lager.`,
+        data: { variantId: res.variantId, stock: updatedVariant.stock },
+      });
+      notifyTelegram("orders", `⚠️ *Niedriger Bestand*\nVariante ${res.variantId}\nNur noch ${updatedVariant.stock} Stück`).catch(() => {});
+    }
+  }
+
+  // Mark all reservations as released (fulfilled)
+  await db
+    .update(checkoutReservations)
+    .set({ releasedAt: new Date() })
+    .where(eq(checkoutReservations.orderId, orderId));
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -51,6 +89,9 @@ export async function POST(request: NextRequest) {
           })
           .where(eq(orders.id, orderId));
 
+        // Fulfill reservations (decrement actual stock)
+        await fulfillReservations(orderId);
+
         // Get order for email
         const order = await db
           .select()
@@ -91,7 +132,8 @@ export async function POST(request: NextRequest) {
         const orderId = session.metadata?.orderId;
 
         if (orderId) {
-          // The checkout session expired — mark order as failed
+          // The checkout session expired — release reservations and mark order as cancelled
+          await releaseReservations(orderId);
           await db
             .update(orders)
             .set({
@@ -111,6 +153,7 @@ export async function POST(request: NextRequest) {
         const orderId = paymentIntent.metadata?.orderId;
 
         if (orderId) {
+          await releaseReservations(orderId);
           await db
             .update(orders)
             .set({

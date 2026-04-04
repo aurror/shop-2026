@@ -10,12 +10,13 @@ import {
   discounts,
   adminNotifications,
   users,
+  checkoutReservations,
 } from "@/lib/db/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, sql, isNull, gt, sum } from "drizzle-orm";
 import { addressSchema } from "@/lib/security";
 import { notifyTelegram } from "@/lib/telegram";
 import { generateOrderNumber } from "@/lib/security";
-import { getShippingConfig, calculateShippingFee } from "@/lib/shipping";
+import { getShippingConfig, calculateShippingFee, getAllSettings } from "@/lib/shipping";
 import { sendTemplateEmail } from "@/lib/email";
 import { z } from "zod";
 
@@ -91,12 +92,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate stock for all items
+    // Get reservation minutes setting
+    const allSettings = await getAllSettings();
+    const reservationMinutes = parseInt((allSettings.checkout_reservation_minutes as string) || "20", 10);
+    const now = new Date();
+
+    // Clean up expired reservations
+    await db
+      .update(checkoutReservations)
+      .set({ releasedAt: now })
+      .where(
+        and(
+          isNull(checkoutReservations.releasedAt),
+          sql`${checkoutReservations.expiresAt} < ${now}`
+        )
+      );
+
+    // Validate stock for all items (subtract active reservations)
     for (const item of cart) {
-      if (item.variantStock < item.quantity) {
+      const reservedRows = await db
+        .select({ reserved: sum(checkoutReservations.quantity) })
+        .from(checkoutReservations)
+        .where(
+          and(
+            eq(checkoutReservations.variantId, item.variantId),
+            isNull(checkoutReservations.releasedAt),
+            gt(checkoutReservations.expiresAt, now)
+          )
+        );
+      const reserved = Number(reservedRows[0]?.reserved ?? 0);
+      const available = item.variantStock - reserved;
+      if (available < item.quantity) {
         return NextResponse.json(
           {
-            error: `"${item.productName} - ${item.variantName}" ist nicht mehr in ausreichender Menge verfügbar (verfügbar: ${item.variantStock})`,
+            error: `"${item.productName} - ${item.variantName}" ist nicht mehr in ausreichender Menge verfügbar (verfügbar: ${available})`,
           },
           { status: 400 }
         );
@@ -298,33 +327,47 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Decrement stock for each variant and check for low stock
-    for (const item of itemDetails) {
-      const [updatedVariant] = await db
-        .update(productVariants)
-        .set({
-          stock: sql`${productVariants.stock} - ${item.quantity}`,
-        })
-        .where(eq(productVariants.id, item.variantId))
-        .returning({ stock: productVariants.stock, lowStockThreshold: productVariants.lowStockThreshold });
+    // For stripe/klarna: create reservations instead of decrementing stock
+    // For bank_transfer: decrement stock immediately
+    if (paymentMethod === "bank_transfer") {
+      for (const item of itemDetails) {
+        const [updatedVariant] = await db
+          .update(productVariants)
+          .set({
+            stock: sql`${productVariants.stock} - ${item.quantity}`,
+          })
+          .where(eq(productVariants.id, item.variantId))
+          .returning({ stock: productVariants.stock, lowStockThreshold: productVariants.lowStockThreshold });
 
-      if (updatedVariant && updatedVariant.stock <= updatedVariant.lowStockThreshold) {
-        await db.insert(adminNotifications).values({
-          type: "low_stock",
-          title: `Niedriger Bestand: ${item.productName}`,
-          message: `${item.productName} – ${item.variantName} (${item.variantSku}) hat nur noch ${updatedVariant.stock} Stück auf Lager.`,
-          data: {
-            productId: item.productId,
-            variantId: item.variantId,
-            stock: updatedVariant.stock,
-            threshold: updatedVariant.lowStockThreshold,
-          },
+        if (updatedVariant && updatedVariant.stock <= updatedVariant.lowStockThreshold) {
+          await db.insert(adminNotifications).values({
+            type: "low_stock",
+            title: `Niedriger Bestand: ${item.productName}`,
+            message: `${item.productName} – ${item.variantName} (${item.variantSku}) hat nur noch ${updatedVariant.stock} Stück auf Lager.`,
+            data: {
+              productId: item.productId,
+              variantId: item.variantId,
+              stock: updatedVariant.stock,
+              threshold: updatedVariant.lowStockThreshold,
+            },
+          });
+
+          notifyTelegram(
+            "orders",
+            `⚠️ *Niedriger Bestand*\n${item.productName} – ${item.variantName} (${item.variantSku})\nNur noch ${updatedVariant.stock} Stück`,
+          ).catch((e) => console.error("[telegram notify]", e));
+        }
+      }
+    } else {
+      // Stripe / Klarna: create checkout reservations
+      const expiresAt = new Date(now.getTime() + reservationMinutes * 60 * 1000);
+      for (const item of itemDetails) {
+        await db.insert(checkoutReservations).values({
+          orderId: order.id,
+          variantId: item.variantId,
+          quantity: item.quantity,
+          expiresAt,
         });
-
-        notifyTelegram(
-          "orders",
-          `⚠️ *Niedriger Bestand*\n${item.productName} – ${item.variantName} (${item.variantSku})\nNur noch ${updatedVariant.stock} Stück`,
-        ).catch((e) => console.error("[telegram notify]", e));
       }
     }
 

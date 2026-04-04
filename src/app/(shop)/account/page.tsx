@@ -2,10 +2,11 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { orders, orderItems } from "@/lib/db/schema";
+import { orders, orderItems, users } from "@/lib/db/schema";
 import { eq, desc } from "drizzle-orm";
 import { Badge } from "@/components/shared/Badge";
 import { ORDER_STATUSES } from "@/types";
+import { AccountSecurity } from "@/components/shop/AccountSecurity";
 
 const formatPrice = (price: number | string) => {
   const num = typeof price === "string" ? parseFloat(price) : price;
@@ -58,6 +59,13 @@ export default async function AccountPage() {
     .where(eq(orders.userId, session.user.id))
     .orderBy(desc(orders.createdAt))
     .limit(5);
+
+  const [userRecord] = await db
+    .select({ passwordHash: users.passwordHash })
+    .from(users)
+    .where(eq(users.id, session.user.id))
+    .limit(1);
+  const isLocalAccount = !!userRecord?.passwordHash;
 
   const quickLinks = [
     { href: "/account/orders", label: "Bestellungen", description: "Alle Bestellungen einsehen" },
@@ -158,6 +166,12 @@ export default async function AccountPage() {
           </div>
         )}
       </div>
+
+      {isLocalAccount && (
+        <div className="mt-12">
+          <AccountSecurity />
+        </div>
+      )}
     </div>
   );
 }

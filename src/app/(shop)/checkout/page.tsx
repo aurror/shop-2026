@@ -118,6 +118,7 @@ export default function CheckoutPage() {
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToWithdrawal, setAgreedToWithdrawal] = useState(false);
   const [addressErrors, setAddressErrors] = useState<Record<string, string>>({});
+  const [saveAddress, setSaveAddress] = useState(false);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -317,8 +318,25 @@ export default function CheckoutPage() {
       }
 
       if (paymentMethod === "bank_transfer") {
+        // Save address if requested (fire and forget)
+        if (saveAddress) {
+          const { id: _id, label: _l, isDefault: _d, ...addrPayload } = shippingAddress;
+          fetch("/api/addresses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(addrPayload),
+          }).catch(() => {});
+        }
         router.push(`/checkout/bank-transfer?orderId=${data.orderId}`);
       } else {
+        if (saveAddress) {
+          const { id: _id, label: _l, isDefault: _d, ...addrPayload } = shippingAddress;
+          fetch("/api/addresses", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(addrPayload),
+          }).catch(() => {});
+        }
         router.push(`/checkout/success?orderId=${data.orderId}`);
       }
     } catch {
@@ -515,6 +533,18 @@ export default function CheckoutPage() {
                     className="h-4 w-4 rounded border-neutral-300 text-black focus:ring-neutral-400"
                   />
                   Rechnungsadresse entspricht Lieferadresse
+                </label>
+              </div>
+
+              <div className="mt-3">
+                <label className="flex items-center gap-2 text-sm text-neutral-700">
+                  <input
+                    type="checkbox"
+                    checked={saveAddress}
+                    onChange={(e) => setSaveAddress(e.target.checked)}
+                    className="h-4 w-4 rounded border-neutral-300 text-black focus:ring-neutral-400"
+                  />
+                  Lieferadresse für spätere Bestellungen speichern
                 </label>
               </div>
 
