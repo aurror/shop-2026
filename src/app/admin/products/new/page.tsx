@@ -7,6 +7,7 @@ import { useLocale } from "@/components/admin/LocaleContext";
 import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
 import { Textarea } from "@/components/shared/Textarea";
+import RichTextEditor from "@/components/admin/RichTextEditor";
 import { Select } from "@/components/shared/Select";
 import { useToast } from "@/components/shared/Toast";
 
@@ -42,6 +43,7 @@ export default function NewProductPage() {
     name: "",
     slug: "",
     description: "",
+    descriptionHtml: "",
     basePrice: "",
     compareAtPrice: "",
     categoryId: "",
@@ -154,12 +156,13 @@ export default function NewProductPage() {
                 onChange={(e) => updateField("slug", e.target.value)}
                 helperText="URL-freundlicher Name, wird automatisch generiert"
               />
-              <Textarea
+              <RichTextEditor
                 label={t("description")}
-                value={form.description}
-                onChange={(e) => updateField("description", e.target.value)}
-                rows={5}
-                placeholder="Produktbeschreibung..."
+                value={form.descriptionHtml || form.description}
+                onChange={(html, text) => {
+                  updateField("descriptionHtml", html);
+                  updateField("description", text);
+                }}
               />
             </div>
           </div>

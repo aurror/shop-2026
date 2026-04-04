@@ -55,6 +55,7 @@ export default function CartPage() {
   const [discountCode, setDiscountCode] = useState("");
   const [discountError, setDiscountError] = useState("");
   const [discountInfo, setDiscountInfo] = useState("");
+  const [discountOpen, setDiscountOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -331,34 +332,62 @@ export default function CartPage() {
           <div className="rounded-xl border border-neutral-200 bg-neutral-50 p-6">
             <h2 className="text-lg font-semibold text-neutral-900">Zusammenfassung</h2>
 
-            {/* Discount Code */}
+            {/* Discount Code — collapsible */}
             <div className="mt-5">
-              <label className="text-xs font-medium text-neutral-600">Rabattcode</label>
-              <div className="mt-1.5 flex gap-2">
-                <Input
-                  value={discountCode}
-                  onChange={(e) => {
-                    setDiscountCode(e.target.value);
-                    setDiscountError("");
-                    setDiscountInfo("");
-                  }}
-                  placeholder="Code eingeben"
-                  className="flex-1"
-                />
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={validateDiscount}
-                  disabled={!discountCode.trim()}
-                >
-                  Anwenden
-                </Button>
-              </div>
-              {discountError && (
-                <p className="mt-1 text-xs text-red-600">{discountError}</p>
-              )}
-              {discountInfo && (
-                <p className="mt-1 text-xs text-green-700">{discountInfo}</p>
+              {discountInfo ? (
+                /* Applied state */
+                <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+                  <span className="flex-1 text-xs font-medium text-green-800">{discountInfo}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setDiscountCode(""); setDiscountInfo(""); setDiscountError(""); setDiscountOpen(false); }}
+                    className="text-xs text-green-700 hover:text-green-900"
+                  >
+                    Entfernen
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setDiscountOpen((o) => !o)}
+                    className="flex items-center gap-1 text-xs text-neutral-400 transition-colors hover:text-neutral-600"
+                  >
+                    <svg
+                      className={`h-3 w-3 transition-transform ${discountOpen ? "rotate-90" : ""}`}
+                      fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
+                    </svg>
+                    Rabattcode eingeben
+                  </button>
+                  {discountOpen && (
+                    <div className="mt-2 flex gap-2">
+                      <Input
+                        value={discountCode}
+                        onChange={(e) => {
+                          setDiscountCode(e.target.value);
+                          setDiscountError("");
+                          setDiscountInfo("");
+                        }}
+                        placeholder="Code eingeben"
+                        className="flex-1"
+                        onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); validateDiscount(); } }}
+                      />
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={validateDiscount}
+                        disabled={!discountCode.trim()}
+                      >
+                        Anwenden
+                      </Button>
+                    </div>
+                  )}
+                  {discountError && (
+                    <p className="mt-1 text-xs text-red-600">{discountError}</p>
+                  )}
+                </>
               )}
             </div>
 

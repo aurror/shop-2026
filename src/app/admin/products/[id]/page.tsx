@@ -7,6 +7,7 @@ import { useLocale } from "@/components/admin/LocaleContext";
 import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
 import { Textarea } from "@/components/shared/Textarea";
+import RichTextEditor from "@/components/admin/RichTextEditor";
 import { Select } from "@/components/shared/Select";
 import { Badge } from "@/components/shared/Badge";
 import { Modal } from "@/components/shared/Modal";
@@ -60,7 +61,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
 
   const [form, setForm] = useState({
-    name: "", slug: "", description: "", basePrice: "", compareAtPrice: "",
+    name: "", slug: "", description: "", descriptionHtml: "", basePrice: "", compareAtPrice: "",
     categoryId: "", weight: "0", taxRate: "19.00", featured: false, active: true,
   });
 
@@ -76,6 +77,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             name: p.name || "",
             slug: p.slug || "",
             description: p.description || "",
+            descriptionHtml: p.descriptionHtml || "",
             basePrice: p.basePrice || "",
             compareAtPrice: p.compareAtPrice || "",
             categoryId: p.categoryId || "",
@@ -428,7 +430,14 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             <div className="space-y-4">
               <Input label={t("productName")} value={form.name} onChange={(e) => updateField("name", e.target.value)} />
               <Input label="Slug" value={form.slug} onChange={(e) => updateField("slug", e.target.value)} />
-              <Textarea label={t("description")} value={form.description} onChange={(e) => updateField("description", e.target.value)} rows={5} />
+              <RichTextEditor
+                label={t("description")}
+                value={form.descriptionHtml || form.description}
+                onChange={(html, text) => {
+                  updateField("descriptionHtml", html);
+                  updateField("description", text);
+                }}
+              />
             </div>
           </div>
 
