@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useLocale } from "@/components/admin/LocaleContext";
 import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
 import { Textarea } from "@/components/shared/Textarea";
+import { Select } from "@/components/shared/Select";
 import { useToast } from "@/components/shared/Toast";
 
 function slugify(text: string): string {
@@ -28,6 +29,14 @@ export default function NewProductPage() {
   const [images, setImages] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((data) => setCategories(data.categories || []))
+      .catch(() => {});
+  }, []);
 
   const [form, setForm] = useState({
     name: "",
@@ -261,11 +270,14 @@ export default function NewProductPage() {
                 value={form.weight}
                 onChange={(e) => updateField("weight", e.target.value)}
               />
-              <Input
+              <Select
                 label={t("category")}
                 value={form.categoryId}
                 onChange={(e) => updateField("categoryId", e.target.value)}
-                placeholder="Kategorie-ID"
+                options={[
+                  { value: "", label: "Keine Kategorie" },
+                  ...categories.map((c) => ({ value: c.id, label: c.name })),
+                ]}
               />
             </div>
           </div>

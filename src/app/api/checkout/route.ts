@@ -297,14 +297,29 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Decrement stock for each variant
+    // Decrement stock for each variant and check for low stock
     for (const item of itemDetails) {
-      await db
+      const [updatedVariant] = await db
         .update(productVariants)
         .set({
           stock: sql`${productVariants.stock} - ${item.quantity}`,
         })
-        .where(eq(productVariants.id, item.variantId));
+        .where(eq(productVariants.id, item.variantId))
+        .returning({ stock: productVariants.stock, lowStockThreshold: productVariants.lowStockThreshold });
+
+      if (updatedVariant && updatedVariant.stock <= updatedVariant.lowStockThreshold) {
+        await db.insert(adminNotifications).values({
+          type: "low_stock",
+          title: `Niedriger Bestand: ${item.productName}`,
+          message: `${item.productName} – ${item.variantName} (${item.variantSku}) hat nur noch ${updatedVariant.stock} Stück auf Lager.`,
+          data: {
+            productId: item.productId,
+            variantId: item.variantId,
+            stock: updatedVariant.stock,
+            threshold: updatedVariant.lowStockThreshold,
+          },
+        });
+      }
     }
 
     // Clear cart

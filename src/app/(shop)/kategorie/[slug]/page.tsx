@@ -47,7 +47,7 @@ async function getCategoryProducts(categoryId: string) {
       .where(
         and(
           eq(productVariants.active, true),
-          sql`${productVariants.productId} = ANY(${productIds})`
+          sql`${productVariants.productId} = ANY(ARRAY[${sql.join(productIds.map((id) => sql`${id}::uuid`), sql`, `)}])`
         )
       )
       .orderBy(asc(productVariants.sortOrder));

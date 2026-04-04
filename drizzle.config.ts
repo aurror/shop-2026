@@ -7,5 +7,5 @@ export default defineConfig({
   dbCredentials: {
     url: process.env.DATABASE_URL!,
   },
-  schemaFilter: [process.env.DB_SCHEMA || "student_oc_test0404"],
+  schemaFilter: [process.env.DB_SCHEMA || "student_test"],
 });

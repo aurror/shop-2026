@@ -14,6 +14,21 @@ export async function GET(request: NextRequest) {
     const sort = searchParams.get("sort") || "newest";
     const offset = (page - 1) * limit;
 
+    // Build where conditions
+    const conditions: ReturnType<typeof eq>[] = [eq(products.active, true)];
+
+    if (category) {
+      conditions.push(eq(categories.slug, category));
+    }
+    if (search) {
+      conditions.push(ilike(products.name, `%${search}%`));
+    }
+    if (featured === "true") {
+      conditions.push(eq(products.featured, true));
+    }
+
+    const whereClause = conditions.length === 1 ? conditions[0] : and(...conditions)!;
+
     let query = db
       .select({
         id: products.id,
@@ -33,31 +48,15 @@ export async function GET(request: NextRequest) {
       })
       .from(products)
       .leftJoin(categories, eq(products.categoryId, categories.id))
-      .where(eq(products.active, true))
+      .where(whereClause)
       .$dynamic();
 
-    if (category) {
-      query = query.where(and(eq(products.active, true), eq(categories.slug, category)));
-    }
-
-    if (search) {
-      query = query.where(
-        and(
-          eq(products.active, true),
-          ilike(products.name, `%${search}%`)
-        )
-      );
-    }
-
-    if (featured === "true") {
-      query = query.where(and(eq(products.active, true), eq(products.featured, true)));
-    }
-
-    // Count total
+    // Count total with same filters
     const countResult = await db
       .select({ count: sql<number>`count(*)` })
       .from(products)
-      .where(eq(products.active, true));
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .where(whereClause);
     const total = Number(countResult[0].count);
 
     // Sort
@@ -90,7 +89,7 @@ export async function GET(request: NextRequest) {
         .where(
           and(
             eq(productVariants.active, true),
-            sql`${productVariants.productId} = ANY(${productIds})`
+            sql`${productVariants.productId} = ANY(ARRAY[${sql.join(productIds.map((id) => sql`${id}::uuid`), sql`, `)}])`
           )
         )
         .orderBy(asc(productVariants.sortOrder));

@@ -47,6 +47,15 @@ interface VisitorData {
   totalViews: number;
 }
 
+interface StockDemandItem {
+  productId: string;
+  variantId: string;
+  productName: string;
+  variantName: string;
+  variantSku: string;
+  requestCount: number;
+}
+
 const statusVariant: Record<string, "success" | "warning" | "danger" | "info" | "default"> = {
   pending: "warning",
   awaiting_payment: "warning",
@@ -95,6 +104,7 @@ export default function AdminDashboardPage() {
   const [lowStock, setLowStock] = useState<LowStockItem[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [visitorData, setVisitorData] = useState<VisitorData[]>([]);
+  const [stockDemand, setStockDemand] = useState<StockDemandItem[]>([]);
 
   useEffect(() => {
     async function fetchDashboardData() {
@@ -173,6 +183,7 @@ export default function AdminDashboardPage() {
         if (analyticsRes.ok) {
           const analyticsData = await analyticsRes.json();
           setVisitorData(analyticsData.pageViews?.visitorTrends || []);
+          setStockDemand(analyticsData.stockDemand || []);
         }
       } catch (error) {
         console.error("Dashboard fetch error:", error);
@@ -317,6 +328,38 @@ export default function AdminDashboardPage() {
               )}
             </div>
           </div>
+
+          {/* Stock demand (back-in-stock requests) */}
+          {stockDemand.length > 0 && (
+            <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-neutral-200 px-6 py-4">
+                <h2 className="text-sm font-semibold text-neutral-900">Nachfrage (Benachrichtigungen)</h2>
+                <Link href="/admin/analytics" className="text-xs font-medium text-neutral-500 hover:text-neutral-900">
+                  Details &rarr;
+                </Link>
+              </div>
+              <div className="max-h-64 overflow-y-auto">
+                <ul className="divide-y divide-neutral-100">
+                  {stockDemand.map((item) => (
+                    <li key={`${item.productId}-${item.variantId}`} className="flex items-center justify-between px-6 py-3">
+                      <div className="min-w-0 flex-1">
+                        <Link
+                          href={`/admin/products/${item.productId}`}
+                          className="block truncate text-sm font-medium text-neutral-900 hover:underline"
+                        >
+                          {item.productName} – {item.variantName}
+                        </Link>
+                        <p className="text-xs text-neutral-500">{item.variantSku}</p>
+                      </div>
+                      <Badge variant="info">
+                        {item.requestCount} {item.requestCount === 1 ? "Anfrage" : "Anfragen"}
+                      </Badge>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 

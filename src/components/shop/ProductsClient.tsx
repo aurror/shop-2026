@@ -62,6 +62,7 @@ export function ProductsClient({
   const [searchInput, setSearchInput] = useState(initialSearch || "");
 
   const category = searchParams.get("category") || initialCategory;
+  const featured = searchParams.get("featured") || "";
   const page = parseInt(searchParams.get("page") || String(initialPage)) || 1;
 
   const fetchProducts = useCallback(async () => {
@@ -72,6 +73,7 @@ export function ProductsClient({
       params.set("sort", sort);
       if (category) params.set("category", category);
       if (search) params.set("search", search);
+      if (featured) params.set("featured", featured);
 
       const res = await fetch(`/api/products?${params.toString()}`);
       if (!res.ok) throw new Error("Fehler beim Laden");
@@ -83,7 +85,7 @@ export function ProductsClient({
     } finally {
       setLoading(false);
     }
-  }, [page, sort, category, search]);
+  }, [page, sort, category, search, featured]);
 
   useEffect(() => {
     fetchProducts();
@@ -174,7 +176,7 @@ export function ProductsClient({
       </div>
 
       {/* Active filters */}
-      {(search || category) && (
+      {(search || category || featured) && (
         <div className="mb-6 flex flex-wrap items-center gap-2">
           {search && (
             <button
@@ -199,6 +201,18 @@ export function ProductsClient({
               className="inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
             >
               Kategorie: {category}
+              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+          {featured && (
+            <button
+              type="button"
+              onClick={() => updateUrl({ featured: "", page: "" })}
+              className="inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
+            >
+              Empfohlen
               <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>

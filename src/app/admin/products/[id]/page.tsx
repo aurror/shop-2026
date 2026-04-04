@@ -7,6 +7,7 @@ import { useLocale } from "@/components/admin/LocaleContext";
 import { Button } from "@/components/shared/Button";
 import { Input } from "@/components/shared/Input";
 import { Textarea } from "@/components/shared/Textarea";
+import { Select } from "@/components/shared/Select";
 import { Badge } from "@/components/shared/Badge";
 import { Modal } from "@/components/shared/Modal";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
@@ -56,6 +57,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   // AI suggestions
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
 
   const [form, setForm] = useState({
     name: "", slug: "", description: "", basePrice: "", compareAtPrice: "",
@@ -97,6 +99,13 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     }
     fetchProduct();
   }, [id, router, addToast]);
+
+  useEffect(() => {
+    fetch("/api/categories")
+      .then((r) => r.json())
+      .then((data) => setCategories(data.categories || []))
+      .catch(() => {});
+  }, []);
 
   // Fetch AI suggestions
   useEffect(() => {
@@ -627,7 +636,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             <h2 className="mb-4 text-sm font-semibold text-neutral-900">Details</h2>
             <div className="space-y-4">
               <Input label={`${t("weight")} (kg)`} type="number" step="0.01" min="0" value={form.weight} onChange={(e) => updateField("weight", e.target.value)} />
-              <Input label={t("category")} value={form.categoryId} onChange={(e) => updateField("categoryId", e.target.value)} placeholder="Kategorie-ID" />
+              <Select label={t("category")} value={form.categoryId} onChange={(e) => updateField("categoryId", e.target.value)} options={[{ value: "", label: "Keine Kategorie" }, ...categories.map((c) => ({ value: c.id, label: c.name }))]} />
             </div>
           </div>
 

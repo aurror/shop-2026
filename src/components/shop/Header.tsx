@@ -181,7 +181,7 @@ export function Header({ cartCount, userName, isLoggedIn }: HeaderProps) {
                     Mein Konto
                   </Link>
                   <Link
-                    href="/account"
+                    href="/account/orders"
                     className="block px-4 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
                     onClick={() => setUserMenuOpen(false)}
                   >

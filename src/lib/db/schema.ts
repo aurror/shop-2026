@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
-const SCHEMA_NAME = process.env.DB_SCHEMA || "student_oc_test0404";
+const SCHEMA_NAME = process.env.DB_SCHEMA || "student_test";
 export const schema = pgSchema(SCHEMA_NAME);
 
 // ─── Auth Tables (NextAuth compatible) ──────────────────────────────────────

@@ -7,7 +7,7 @@ import {
   categories,
   productRelations,
 } from "@/lib/db/schema";
-import { eq, and, asc } from "drizzle-orm";
+import { eq, and, asc, sql } from "drizzle-orm";
 import { ProductDetail } from "@/components/shop/ProductDetail";
 
 interface ProductPageProps {
@@ -79,27 +79,79 @@ async function getProduct(slug: string) {
 
   let relatedProducts: any[] = [];
   if (relations.length > 0) {
-    for (const rel of relations) {
-      const rp = await db
-        .select({
-          id: products.id,
-          name: products.name,
-          slug: products.slug,
-          basePrice: products.basePrice,
-          compareAtPrice: products.compareAtPrice,
-          images: products.images,
-        })
-        .from(products)
-        .where(
-          and(eq(products.id, rel.relatedProductId), eq(products.active, true))
-        )
-        .limit(1);
+    const relatedIds = relations.map((r) => r.relatedProductId);
 
-      if (rp.length) {
+    // Fetch all related products in one query
+    const rpRows = relatedIds.length > 0
+      ? await db
+          .select({
+            id: products.id,
+            name: products.name,
+            slug: products.slug,
+            basePrice: products.basePrice,
+            compareAtPrice: products.compareAtPrice,
+            images: products.images,
+            categoryId: products.categoryId,
+          })
+          .from(products)
+          .where(
+            and(
+              eq(products.active, true),
+              sql`${products.id} = ANY(ARRAY[${sql.join(relatedIds.map((id) => sql`${id}::uuid`), sql`, `)}])`
+            )
+          )
+      : [];
+
+    if (rpRows.length > 0) {
+      const rpIds = rpRows.map((r) => r.id);
+      const rpCategoryIds = rpRows.map((r) => r.categoryId).filter(Boolean) as string[];
+
+      // Fetch all variants and categories in bulk
+      const [allRpVariants, allRpCategories] = await Promise.all([
+        db
+          .select({ id: productVariants.id, productId: productVariants.productId, price: productVariants.price, stock: productVariants.stock })
+          .from(productVariants)
+          .where(
+            and(
+              eq(productVariants.active, true),
+              sql`${productVariants.productId} = ANY(ARRAY[${sql.join(rpIds.map((id) => sql`${id}::uuid`), sql`, `)}])`
+            )
+          ),
+        rpCategoryIds.length > 0
+          ? db
+              .select({ id: categories.id, name: categories.name, slug: categories.slug })
+              .from(categories)
+              .where(
+                sql`${categories.id} = ANY(ARRAY[${sql.join(rpCategoryIds.map((id) => sql`${id}::uuid`), sql`, `)}])`
+              )
+          : Promise.resolve([]),
+      ]);
+
+      for (const rel of relations) {
+        const rp = rpRows.find((r) => r.id === rel.relatedProductId);
+        if (!rp) continue;
+
+        const rpVariants = allRpVariants.filter((v) => v.productId === rp.id);
+        const rpCategory = rp.categoryId
+          ? allRpCategories.find((c) => c.id === rp.categoryId) || null
+          : null;
+
+        const minPrice = rpVariants.reduce((min: number | null, v) => {
+          const price = v.price ? parseFloat(v.price) : null;
+          if (price === null) return min;
+          return min === null || price < min ? price : min;
+        }, null) || parseFloat(rp.basePrice);
+
+        const totalStock = rpVariants.reduce((sum, v) => sum + v.stock, 0);
+
         relatedProducts.push({
-          ...rp[0],
-          images: (rp[0].images as string[]) || [],
+          ...rp,
+          images: (rp.images as string[]) || [],
           relationType: rel.relationType,
+          category: rpCategory,
+          variants: rpVariants,
+          minPrice,
+          totalStock,
         });
       }
     }

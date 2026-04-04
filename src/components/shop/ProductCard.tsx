@@ -106,6 +106,15 @@ export function ProductCard({ product }: ProductCardProps) {
               </span>
             </div>
           )}
+
+          {/* Sale badge */}
+          {compareAtPrice && compareAtPrice > minPrice && !isOutOfStock && (
+            <div className="absolute right-3 top-3">
+              <span className="rounded-full bg-red-600 px-2 py-0.5 text-[11px] font-semibold text-white">
+                −{Math.round(((compareAtPrice - minPrice) / compareAtPrice) * 100)}%
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Content */}

@@ -158,30 +158,19 @@ export default function CartPage() {
     setDiscountError("");
     setDiscountInfo("");
     try {
-      const res = await fetch("/api/checkout", {
+      const res = await fetch("/api/discounts/validate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          discountCode: discountCode.trim(),
-          shippingAddress: { firstName: "test", lastName: "test", street: "test", streetNumber: "1", zip: "12345", city: "test", country: "DE" },
-          billingAddress: { firstName: "test", lastName: "test", street: "test", streetNumber: "1", zip: "12345", city: "test", country: "DE" },
-          paymentMethod: "bank_transfer",
-          agreedToTerms: true,
-          agreedToWithdrawal: true,
+          code: discountCode.trim(),
+          subtotal: cart?.subtotal ?? 0,
         }),
       });
-      // We use this just for validation - actual checkout is on the checkout page
-      // If it returns an error about the discount code specifically, show it
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json();
-        if (data.error?.toLowerCase().includes("rabatt") || data.error?.toLowerCase().includes("code")) {
-          setDiscountError(data.error);
-        } else {
-          // The discount code is likely valid, the error is about something else
-          setDiscountInfo("Rabattcode wird an der Kasse angewendet");
-        }
+        setDiscountError(data.error || "Ungültiger Rabattcode");
       } else {
-        setDiscountInfo("Rabattcode wird an der Kasse angewendet");
+        setDiscountInfo(`✓ ${data.description}`);
       }
     } catch {
       setDiscountError("Fehler bei der Überprüfung");

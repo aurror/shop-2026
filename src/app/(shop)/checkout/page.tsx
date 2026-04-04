@@ -101,6 +101,15 @@ export default function CheckoutPage() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>("new");
   const [paymentMethod, setPaymentMethod] = useState<string>("stripe");
   const [discountCode, setDiscountCode] = useState("");
+  const [discountApplied, setDiscountApplied] = useState<{
+    code: string;
+    type: string;
+    description: string;
+    discountAmount: number;
+    freeShipping: boolean;
+  } | null>(null);
+  const [discountError, setDiscountError] = useState("");
+  const [discountLoading, setDiscountLoading] = useState(false);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [agreedToWithdrawal, setAgreedToWithdrawal] = useState(false);
   const [addressErrors, setAddressErrors] = useState<Record<string, string>>({});
@@ -223,6 +232,38 @@ export default function CheckoutPage() {
     setError("");
   };
 
+  const applyDiscount = async () => {
+    const code = discountCode.trim();
+    if (!code) return;
+    setDiscountError("");
+    setDiscountLoading(true);
+    try {
+      const res = await fetch("/api/discounts/validate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, subtotal: cart?.subtotal ?? 0 }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setDiscountError(data.error || "Ungültiger Rabattcode");
+        setDiscountApplied(null);
+      } else {
+        setDiscountApplied(data);
+        setDiscountError("");
+      }
+    } catch {
+      setDiscountError("Fehler bei der Überprüfung");
+    } finally {
+      setDiscountLoading(false);
+    }
+  };
+
+  const removeDiscount = () => {
+    setDiscountApplied(null);
+    setDiscountCode("");
+    setDiscountError("");
+  };
+
   const handleSubmit = async () => {
     if (!agreedToTerms) {
       setError("Bitte akzeptieren Sie die AGB.");
@@ -285,7 +326,9 @@ export default function CheckoutPage() {
 
   if (!cart || cart.items.length === 0) return null;
 
-  const total = cart.subtotal + (shipping?.shippingFee ?? 0);
+  const discountAmt = discountApplied?.discountAmount ?? 0;
+  const effectiveShipping = discountApplied?.freeShipping ? 0 : (shipping?.shippingFee ?? 0);
+  const total = cart.subtotal - discountAmt + effectiveShipping;
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:py-12">
@@ -577,14 +620,44 @@ export default function CheckoutPage() {
               {/* Discount code */}
               <div className="mt-8">
                 <label className="text-sm font-medium text-neutral-700">Rabattcode</label>
-                <div className="mt-1.5 flex gap-2">
-                  <Input
-                    value={discountCode}
-                    onChange={(e) => setDiscountCode(e.target.value)}
-                    placeholder="Code eingeben"
-                    className="flex-1"
-                  />
-                </div>
+                {discountApplied ? (
+                  <div className="mt-1.5 flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2">
+                    <span className="flex-1 text-sm font-medium text-green-800">
+                      {discountApplied.code} — {discountApplied.description}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={removeDiscount}
+                      className="text-xs font-medium text-green-700 hover:text-green-900"
+                    >
+                      Entfernen
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-1.5 flex gap-2">
+                    <Input
+                      value={discountCode}
+                      onChange={(e) => setDiscountCode(e.target.value)}
+                      placeholder="Code eingeben"
+                      className="flex-1"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") { e.preventDefault(); applyDiscount(); }
+                      }}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={applyDiscount}
+                      loading={discountLoading}
+                      disabled={!discountCode.trim()}
+                    >
+                      Einlösen
+                    </Button>
+                  </div>
+                )}
+                {discountError && (
+                  <p className="mt-1 text-xs text-red-600">{discountError}</p>
+                )}
               </div>
 
               <div className="mt-8 flex gap-3">
@@ -774,10 +847,18 @@ export default function CheckoutPage() {
                 <span className="text-neutral-600">Zwischensumme</span>
                 <span className="font-medium text-neutral-900">{formatPrice(cart.subtotal)}</span>
               </div>
+              {discountApplied && discountAmt > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-green-700">Rabatt ({discountApplied.code})</span>
+                  <span className="font-medium text-green-700">−{formatPrice(discountAmt)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-neutral-600">Versand</span>
                 <span className="font-medium text-neutral-900">
-                  {shipping ? (
+                  {discountApplied?.freeShipping ? (
+                    <span className="text-green-700">Kostenlos (Rabatt)</span>
+                  ) : shipping ? (
                     shipping.shippingFee === 0 ? (
                       <span className="text-green-700">Kostenlos</span>
                     ) : (

@@ -25,6 +25,10 @@ interface RelatedProduct {
   compareAtPrice: string | null;
   images: string[];
   relationType: string;
+  category?: { id: string; name: string; slug: string } | null;
+  variants?: { id: string; price: string | null; stock: number }[];
+  minPrice?: number;
+  totalStock?: number;
 }
 
 interface ProductData {
@@ -449,6 +453,10 @@ export function ProductDetail({ product }: { product: ProductData }) {
                     basePrice: rp.basePrice,
                     compareAtPrice: rp.compareAtPrice,
                     images: rp.images,
+                    category: rp.category || undefined,
+                    variants: rp.variants,
+                    minPrice: rp.minPrice,
+                    totalStock: rp.totalStock,
                   }}
                 />
               ))}
