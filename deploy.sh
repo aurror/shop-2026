@@ -48,3 +48,4 @@ pm2 restart shop >> "$LOG_FILE" 2>&1 || pm2 start .next/standalone/server.js --n
 rm -f "$FLAG_FILE"
 
 echo "=== Deploy finished at $(date) ===" >> "$LOG_FILE"
+#test
