@@ -50,3 +50,4 @@ pm2 restart shop 2>&1 | tee -a "$LOG_FILE" || pm2 start .next/standalone/server.
 rm -f "$FLAG_FILE"
 
 echo "=== Deploy finished at $(date) ===" | tee -a "$LOG_FILE"
+#test
