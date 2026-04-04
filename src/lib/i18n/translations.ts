@@ -133,6 +133,7 @@ const translations = {
     showing: "Zeige",
     of: "von",
     items: "Einträge",
+    updates: "Updates",
 
     // Notifications
     newOrder: "Neue Bestellung",
@@ -300,6 +301,7 @@ const translations = {
     showing: "Showing",
     of: "of",
     items: "items",
+    updates: "Updates",
 
     // Notifications
     newOrder: "New Order",
