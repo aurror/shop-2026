@@ -152,6 +152,29 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     }
   }, [addToast]);
 
+  const handleVariantImageUpload = useCallback(async (variantId: string, files: FileList | File[]) => {
+    try {
+      const urls: string[] = [];
+      for (const file of Array.from(files)) {
+        const formData = new FormData();
+        formData.append("file", file);
+        const res = await fetch("/api/upload", { method: "POST", body: formData });
+        if (res.ok) {
+          const data = await res.json();
+          urls.push(data.url);
+        }
+      }
+      if (urls.length > 0) {
+        const variant = variants.find((v) => v.id === variantId);
+        const currentImages = variant?.images || [];
+        const newImages = [...currentImages, ...urls];
+        await handleUpdateVariant(variantId, "images", newImages as any);
+      }
+    } catch {
+      addToast("error", "Upload-Fehler");
+    }
+  }, [variants, addToast]);
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragOver(false);
@@ -466,7 +489,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                       <th>{t("sku")}</th>
                       <th className="text-right">{t("price")}</th>
                       <th className="text-right">{t("stock")}</th>
-                      <th>{t("weight")}</th>
+                      <th>Bilder</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -509,7 +532,37 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                             }}
                           />
                         </td>
-                        <td className="text-sm text-neutral-500">{variant.weight || "-"}</td>
+                        <td className="text-sm text-neutral-500">
+                          <div className="flex items-center gap-1">
+                            {(variant.images || []).map((img: string, i: number) => (
+                              <div key={i} className="group relative h-8 w-8 overflow-hidden rounded border">
+                                <img src={img} alt="" className="h-full w-full object-cover" />
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    const newImgs = (variant.images || []).filter((_: string, j: number) => j !== i);
+                                    handleUpdateVariant(variant.id, "images", newImgs as any);
+                                  }}
+                                  className="absolute inset-0 flex items-center justify-center bg-black/50 text-white opacity-0 group-hover:opacity-100"
+                                >
+                                  ×
+                                </button>
+                              </div>
+                            ))}
+                            <label className="flex h-8 w-8 cursor-pointer items-center justify-center rounded border border-dashed border-neutral-300 text-neutral-400 hover:border-neutral-500 hover:text-neutral-600">
+                              <span className="text-lg leading-none">+</span>
+                              <input
+                                type="file"
+                                accept="image/*"
+                                multiple
+                                className="hidden"
+                                onChange={(e) => {
+                                  if (e.target.files?.length) handleVariantImageUpload(variant.id, e.target.files);
+                                }}
+                              />
+                            </label>
+                          </div>
+                        </td>
                         <td>
                           <button
                             type="button"

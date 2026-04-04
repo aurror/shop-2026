@@ -180,6 +180,7 @@ async function getProduct(slug: string) {
       stock: v.stock,
       weight: v.weight,
       attributes: (v.attributes as Record<string, string>) || {},
+      images: (v.images as string[]) || [],
       active: v.active,
       sortOrder: v.sortOrder,
     })),
@@ -197,13 +198,102 @@ export async function generateMetadata({
     return { title: "Produkt nicht gefunden" };
   }
 
+  const title = product.metaTitle || product.name;
+  const description =
+    product.metaDescription ||
+    product.description?.slice(0, 160) ||
+    `${product.name} – Jetzt bei 3DPrintIt kaufen`;
+  const url = `https://3dprintit.de/products/${product.slug}`;
+  const ogImage = product.images[0] || undefined;
+
   return {
-    title: product.metaTitle || product.name,
-    description:
-      product.metaDescription ||
-      product.description?.slice(0, 160) ||
-      `${product.name} – Jetzt bei 3DPrintIt kaufen`,
+    title,
+    description,
+    alternates: { canonical: url },
+    openGraph: {
+      title,
+      description,
+      url,
+      type: "website",
+      siteName: "3DPrintIt",
+      locale: "de_DE",
+      ...(ogImage ? { images: [{ url: ogImage, alt: product.name }] } : {}),
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      ...(ogImage ? { images: [ogImage] } : {}),
+    },
   };
+}
+
+function ProductJsonLd({ product }: { product: NonNullable<Awaited<ReturnType<typeof getProduct>>> }) {
+  const minPrice =
+    product.variants.length > 0
+      ? Math.min(
+          ...product.variants.map((v) =>
+            v.price ? parseFloat(v.price) : parseFloat(product.basePrice)
+          )
+        )
+      : parseFloat(product.basePrice);
+
+  const totalStock = product.variants.reduce((s, v) => s + v.stock, 0);
+
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    description: product.description || product.name,
+    image: product.images,
+    sku: product.variants[0]?.sku,
+    brand: { "@type": "Brand", name: "3DPrintIt" },
+    offers: {
+      "@type": "Offer",
+      url: `https://3dprintit.de/products/${product.slug}`,
+      priceCurrency: "EUR",
+      price: minPrice.toFixed(2),
+      availability:
+        totalStock > 0
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+      seller: { "@type": "Organization", name: "3DPrintIt" },
+    },
+    ...(product.category
+      ? {
+          category: product.category.name,
+          breadcrumb: {
+            "@type": "BreadcrumbList",
+            itemListElement: [
+              {
+                "@type": "ListItem",
+                position: 1,
+                name: "Produkte",
+                item: "https://3dprintit.de/products",
+              },
+              {
+                "@type": "ListItem",
+                position: 2,
+                name: product.category.name,
+                item: `https://3dprintit.de/kategorie/${product.category.slug}`,
+              },
+              {
+                "@type": "ListItem",
+                position: 3,
+                name: product.name,
+              },
+            ],
+          },
+        }
+      : {}),
+  };
+
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    />
+  );
 }
 
 export default async function ProductPage({ params }: ProductPageProps) {
@@ -214,5 +304,10 @@ export default async function ProductPage({ params }: ProductPageProps) {
     notFound();
   }
 
-  return <ProductDetail product={product} />;
+  return (
+    <>
+      <ProductJsonLd product={product} />
+      <ProductDetail product={product} />
+    </>
+  );
 }

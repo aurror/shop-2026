@@ -176,6 +176,7 @@ export async function PUT(
     if (data.lowStockThreshold !== undefined) updateData.lowStockThreshold = data.lowStockThreshold;
     if (data.weight !== undefined) updateData.weight = data.weight;
     if (data.attributes !== undefined) updateData.attributes = data.attributes;
+    if (data.images !== undefined) updateData.images = data.images;
     if (data.active !== undefined) updateData.active = data.active;
     if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
 

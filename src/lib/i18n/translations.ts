@@ -15,6 +15,7 @@ const translations = {
     backups: "Backups",
     aiSuggestions: "KI-Vorschläge",
     roles: "Rollen",
+    returns: "Retouren",
     logout: "Abmelden",
 
     // Dashboard
@@ -175,6 +176,7 @@ const translations = {
     backups: "Backups",
     aiSuggestions: "AI Suggestions",
     roles: "Roles",
+    returns: "Returns",
     logout: "Logout",
 
     // Dashboard

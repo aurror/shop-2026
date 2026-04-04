@@ -13,6 +13,7 @@ interface Variant {
   stock: number;
   weight: string | null;
   attributes: Record<string, string>;
+  images: string[];
   active: boolean;
   sortOrder: number;
 }
@@ -65,6 +66,12 @@ export function ProductDetail({ product }: { product: ProductData }) {
   const [notifyEmail, setNotifyEmail] = useState("");
   const [notifyLoading, setNotifyLoading] = useState(false);
   const [notifyMessage, setNotifyMessage] = useState<string | null>(null);
+
+  // Variant-specific images shown first, then product-level images
+  const displayImages = [
+    ...(selectedVariant?.images || []),
+    ...product.images,
+  ];
 
   const currentPrice = selectedVariant?.price
     ? parseFloat(selectedVariant.price)
@@ -184,9 +191,9 @@ export function ProductDetail({ product }: { product: ProductData }) {
           <div>
             {/* Main image */}
             <div className="relative aspect-square overflow-hidden rounded-2xl bg-neutral-50">
-              {product.images.length > 0 ? (
+              {displayImages.length > 0 ? (
                 <Image
-                  src={product.images[selectedImageIndex] || product.images[0]}
+                  src={displayImages[selectedImageIndex] || displayImages[0]}
                   alt={product.name}
                   fill
                   sizes="(max-width: 1024px) 100vw, 50vw"
@@ -213,9 +220,9 @@ export function ProductDetail({ product }: { product: ProductData }) {
             </div>
 
             {/* Thumbnails */}
-            {product.images.length > 1 && (
+            {displayImages.length > 1 && (
               <div className="mt-4 flex gap-3 overflow-x-auto pb-1">
-                {product.images.map((img, idx) => (
+                {displayImages.map((img, idx) => (
                   <button
                     key={idx}
                     type="button"
@@ -285,7 +292,10 @@ export function ProductDetail({ product }: { product: ProductData }) {
                     <button
                       key={v.id}
                       type="button"
-                      onClick={() => setSelectedVariant(v)}
+                      onClick={() => {
+                        setSelectedVariant(v);
+                        setSelectedImageIndex(0);
+                      }}
                       disabled={v.stock === 0}
                       className={`rounded-lg border px-4 py-2 text-sm font-medium transition-all ${
                         selectedVariant?.id === v.id

@@ -4,9 +4,12 @@ import { writeFile, mkdir } from "fs/promises";
 import { join } from "path";
 import { randomUUID } from "crypto";
 import { existsSync } from "fs";
+import sharp from "sharp";
 
-const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (pre-processing)
 const UPLOAD_DIR = join(process.cwd(), "public", "uploads");
+const MAX_WIDTH = 1200;
+const THUMB_WIDTH = 400;
 
 export async function POST(request: NextRequest) {
   try {
@@ -36,7 +39,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate mime type
     if (!file.type.startsWith("image/")) {
       return NextResponse.json(
         { error: "Nur Bilddateien sind erlaubt" },
@@ -44,29 +46,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate file size
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        { error: "Datei ist zu groß. Maximal 5 MB erlaubt." },
+        { error: "Datei ist zu groß. Maximal 10 MB erlaubt." },
         { status: 400 }
       );
     }
 
-    // Ensure upload directory exists
-    if (!existsSync(UPLOAD_DIR)) {
-      await mkdir(UPLOAD_DIR, { recursive: true });
-    }
-
-    // Generate unique filename preserving extension
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const allowedExtensions = [
-      "jpg",
-      "jpeg",
-      "png",
-      "gif",
-      "webp",
-      "svg",
-      "avif",
+      "jpg", "jpeg", "png", "gif", "webp", "svg", "avif",
     ];
     if (!allowedExtensions.includes(ext)) {
       return NextResponse.json(
@@ -75,18 +64,53 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const filename = `${randomUUID()}.${ext}`;
-    const filepath = join(UPLOAD_DIR, filename);
+    if (!existsSync(UPLOAD_DIR)) {
+      await mkdir(UPLOAD_DIR, { recursive: true });
+    }
 
-    // Write file
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    await writeFile(filepath, buffer);
+    const id = randomUUID();
 
-    const url = `/uploads/${filename}`;
+    // SVGs are passed through without processing
+    if (ext === "svg") {
+      const filename = `${id}.svg`;
+      await writeFile(join(UPLOAD_DIR, filename), buffer);
+      const url = `/uploads/${filename}`;
+      return NextResponse.json(
+        { success: true, url, thumbUrl: url, filename },
+        { status: 201 }
+      );
+    }
+
+    // Process with sharp: strip EXIF, resize, convert to webp
+    const mainFilename = `${id}.webp`;
+    const thumbFilename = `${id}_thumb.webp`;
+
+    const image = sharp(buffer).rotate(); // auto-rotate based on EXIF then strip
+
+    const metadata = await image.metadata();
+    const needsResize = (metadata.width || 0) > MAX_WIDTH;
+
+    const mainPipeline = needsResize
+      ? image.clone().resize(MAX_WIDTH, undefined, { withoutEnlargement: true })
+      : image.clone();
+
+    await mainPipeline
+      .webp({ quality: 82 })
+      .toFile(join(UPLOAD_DIR, mainFilename));
+
+    await image
+      .clone()
+      .resize(THUMB_WIDTH, undefined, { withoutEnlargement: true })
+      .webp({ quality: 72 })
+      .toFile(join(UPLOAD_DIR, thumbFilename));
+
+    const url = `/uploads/${mainFilename}`;
+    const thumbUrl = `/uploads/${thumbFilename}`;
 
     return NextResponse.json(
-      { success: true, url, filename },
+      { success: true, url, thumbUrl, filename: mainFilename },
       { status: 201 }
     );
   } catch (error) {

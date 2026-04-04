@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
@@ -51,6 +51,38 @@ interface OrderDetail {
   updatedAt: string;
   items: OrderItem[];
 }
+
+interface ReturnRequest {
+  id: string;
+  reason: string;
+  reasonDetail: string | null;
+  status: string;
+  action: string | null;
+  items: { productName: string; variantName?: string; quantity: number }[];
+  createdAt: string;
+}
+
+const RETURN_REASONS = [
+  { value: "damaged", label: "Beschädigt" },
+  { value: "wrong_item", label: "Falscher Artikel" },
+  { value: "other", label: "Anderes" },
+];
+
+const RETURN_STATUS_LABELS: Record<string, string> = {
+  requested: "Angefragt",
+  approved: "Genehmigt",
+  received: "Erhalten",
+  completed: "Abgeschlossen",
+  rejected: "Abgelehnt",
+};
+
+const RETURN_STATUS_VARIANT: Record<string, "success" | "warning" | "danger" | "info" | "default"> = {
+  requested: "warning",
+  approved: "info",
+  received: "info",
+  completed: "success",
+  rejected: "danger",
+};
 
 const formatPrice = (price: number | string) => {
   const num = typeof price === "string" ? parseFloat(price) : price;
@@ -114,6 +146,14 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
   const [error, setError] = useState("");
   const [orderId, setOrderId] = useState<string | null>(null);
 
+  // Return request state
+  const [returns, setReturns] = useState<ReturnRequest[]>([]);
+  const [showReturnForm, setShowReturnForm] = useState(false);
+  const [returnReason, setReturnReason] = useState("damaged");
+  const [returnDetail, setReturnDetail] = useState("");
+  const [returnItems, setReturnItems] = useState<Record<string, number>>({});
+  const [submittingReturn, setSubmittingReturn] = useState(false);
+
   useEffect(() => {
     params.then(({ id }) => setOrderId(id));
   }, [params]);
@@ -146,6 +186,79 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
       }
     })();
   }, [authStatus, orderId, router]);
+
+  // Fetch existing returns for this order
+  const fetchReturns = useCallback(async () => {
+    try {
+      const res = await fetch("/api/returns");
+      if (res.ok) {
+        const data = await res.json();
+        setReturns((data.returns || []).filter((r: ReturnRequest) => order && data.returns.length > 0));
+      }
+    } catch { /* ignore */ }
+  }, [order]);
+
+  useEffect(() => {
+    if (!orderId || !order) return;
+    (async () => {
+      try {
+        const res = await fetch("/api/returns");
+        if (res.ok) {
+          const data = await res.json();
+          const orderReturns = (data.returns || []).filter(
+            (r: any) => r.orderId === orderId
+          );
+          setReturns(orderReturns);
+        }
+      } catch { /* ignore */ }
+    })();
+  }, [orderId, order]);
+
+  const handleSubmitReturn = async () => {
+    if (!order || !orderId) return;
+    const items = Object.entries(returnItems)
+      .filter(([_, qty]) => qty > 0)
+      .map(([itemId, qty]) => {
+        const item = order.items.find((i) => i.id === itemId);
+        return {
+          productName: item?.productName || "",
+          variantName: item?.variantName || undefined,
+          quantity: qty,
+        };
+      });
+
+    if (items.length === 0) return;
+
+    setSubmittingReturn(true);
+    try {
+      const res = await fetch("/api/returns", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderId,
+          reason: returnReason,
+          reasonDetail: returnDetail || undefined,
+          items,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setReturns((prev) => [data.return, ...prev]);
+        setShowReturnForm(false);
+        setReturnReason("damaged");
+        setReturnDetail("");
+        setReturnItems({});
+      }
+    } catch { /* ignore */ }
+    finally {
+      setSubmittingReturn(false);
+    }
+  };
+
+  const handleDownloadInvoice = () => {
+    if (!orderId) return;
+    window.open(`/api/account/orders/${orderId}/invoice`, "_blank");
+  };
 
   if (authStatus === "loading" || loading) {
     return (
@@ -342,6 +455,135 @@ export default function OrderDetailPage({ params }: { params: Promise<{ id: stri
           </div>
         )}
       </div>
+
+      {/* Actions: Invoice + Return */}
+      <div className="mt-8 flex flex-wrap gap-3">
+        {(order.status === "paid" || order.status === "processing" || order.status === "shipped" || order.status === "delivered") && (
+          <Button variant="secondary" size="sm" onClick={handleDownloadInvoice}>
+            <svg className="mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+            </svg>
+            Rechnung herunterladen
+          </Button>
+        )}
+        {(order.status === "delivered" || order.status === "shipped") && (
+          <Button variant="secondary" size="sm" onClick={() => setShowReturnForm(true)}>
+            <svg className="mr-1.5 h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
+            </svg>
+            Retoure anfordern
+          </Button>
+        )}
+      </div>
+
+      {/* Existing Returns */}
+      {returns.length > 0 && (
+        <div className="mt-8">
+          <h2 className="mb-4 text-sm font-semibold text-neutral-900">Retouren</h2>
+          <div className="space-y-3">
+            {returns.map((ret) => (
+              <div key={ret.id} className="rounded-xl border border-neutral-200 p-4">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium text-neutral-900">
+                        {RETURN_REASONS.find((r) => r.value === ret.reason)?.label || ret.reason}
+                      </span>
+                      <Badge variant={RETURN_STATUS_VARIANT[ret.status] || "default"}>
+                        {RETURN_STATUS_LABELS[ret.status] || ret.status}
+                      </Badge>
+                    </div>
+                    {ret.reasonDetail && (
+                      <p className="mt-1 text-xs text-neutral-500">{ret.reasonDetail}</p>
+                    )}
+                    <div className="mt-2 text-xs text-neutral-500">
+                      {ret.items.map((item, i) => (
+                        <span key={i}>
+                          {item.quantity}× {item.productName}
+                          {item.variantName ? ` (${item.variantName})` : ""}
+                          {i < ret.items.length - 1 ? ", " : ""}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <span className="text-xs text-neutral-400">{formatDate(ret.createdAt)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Return Request Form */}
+      {showReturnForm && (
+        <div className="mt-8 rounded-xl border border-neutral-200 p-5">
+          <h2 className="mb-4 text-sm font-semibold text-neutral-900">Retoure anfordern</h2>
+          
+          <div className="mb-4">
+            <label className="mb-1 block text-xs font-medium text-neutral-700">Grund</label>
+            <select
+              value={returnReason}
+              onChange={(e) => setReturnReason(e.target.value)}
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none"
+            >
+              {RETURN_REASONS.map((r) => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="mb-4">
+            <label className="mb-1 block text-xs font-medium text-neutral-700">Beschreibung (optional)</label>
+            <textarea
+              value={returnDetail}
+              onChange={(e) => setReturnDetail(e.target.value)}
+              rows={3}
+              className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none"
+              placeholder="Bitte beschreiben Sie den Grund für die Retoure..."
+            />
+          </div>
+
+          <div className="mb-4">
+            <label className="mb-2 block text-xs font-medium text-neutral-700">Artikel auswählen</label>
+            <div className="space-y-2">
+              {order.items.map((item) => (
+                <div key={item.id} className="flex items-center justify-between rounded-lg border border-neutral-100 p-3">
+                  <div>
+                    <p className="text-sm text-neutral-900">{item.productName}</p>
+                    {item.variantName && <p className="text-xs text-neutral-500">{item.variantName}</p>}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <label className="text-xs text-neutral-500">Anzahl:</label>
+                    <select
+                      value={returnItems[item.id] || 0}
+                      onChange={(e) => setReturnItems((prev) => ({ ...prev, [item.id]: parseInt(e.target.value) }))}
+                      className="rounded border border-neutral-300 px-2 py-1 text-sm"
+                    >
+                      {Array.from({ length: item.quantity + 1 }, (_, i) => (
+                        <option key={i} value={i}>{i}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={handleSubmitReturn}
+              disabled={submittingReturn || Object.values(returnItems).every((v) => v === 0)}
+            >
+              {submittingReturn ? "Wird gesendet..." : "Retoure einreichen"}
+            </Button>
+            <Button variant="secondary" size="sm" onClick={() => setShowReturnForm(false)}>
+              Abbrechen
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -101,6 +101,7 @@ export const variantSchema = z.object({
   lowStockThreshold: z.number().int().min(0).optional(),
   weight: z.string().optional().nullable(),
   attributes: z.record(z.string(), z.string()).optional(),
+  images: z.array(z.string()).optional(),
   active: z.boolean().optional(),
   sortOrder: z.number().int().optional(),
 });

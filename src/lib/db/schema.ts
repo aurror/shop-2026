@@ -138,6 +138,7 @@ export const productVariants = schema.table(
     attributes: jsonb("attributes").$type<Record<string, string>>().default({}),
     active: boolean("active").default(true).notNull(),
     sortOrder: integer("sort_order").default(0).notNull(),
+    images: jsonb("images").$type<string[]>().default([]),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
   },
   (table) => [
@@ -425,6 +426,36 @@ export const settings = schema.table("settings", {
   value: jsonb("value").notNull(),
   updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
 });
+
+// ─── Order Returns ──────────────────────────────────────────────────────────
+
+export const orderReturns = schema.table(
+  "order_returns",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    orderId: uuid("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    customerId: uuid("customer_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    reason: text("reason").notNull().default("other"),
+    // damaged, wrong_item, other
+    reasonDetail: text("reason_detail"),
+    status: text("status").notNull().default("requested"),
+    // requested, approved, received, completed, rejected
+    action: text("action"),
+    // refunded, replacement_sent, credit_issued
+    adminNotes: text("admin_notes"),
+    items: jsonb("items").$type<{ productName: string; variantName?: string; quantity: number }[]>().default([]),
+    createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("returns_order_idx").on(table.orderId),
+    index("returns_customer_idx").on(table.customerId),
+  ]
+);
 
 // ─── Backup Logs ────────────────────────────────────────────────────────────
 

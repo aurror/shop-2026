@@ -145,6 +145,7 @@ async function migrate() {
         "attributes" jsonb DEFAULT '{}',
         "active" boolean NOT NULL DEFAULT true,
         "sort_order" integer NOT NULL DEFAULT 0,
+        "images" jsonb DEFAULT '[]',
         "created_at" timestamp NOT NULL DEFAULT now()
       );
       CREATE INDEX IF NOT EXISTS "variants_product_idx" ON "${SCHEMA}"."product_variants" ("product_id");
@@ -360,6 +361,22 @@ async function migrate() {
         "variables" jsonb DEFAULT '[]',
         "updated_at" timestamp NOT NULL DEFAULT now()
       );
+
+      CREATE TABLE IF NOT EXISTS "${SCHEMA}"."order_returns" (
+        "id" uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+        "order_id" uuid NOT NULL REFERENCES "${SCHEMA}"."orders"("id") ON DELETE CASCADE,
+        "customer_id" uuid NOT NULL REFERENCES "${SCHEMA}"."users"("id") ON DELETE CASCADE,
+        "reason" text NOT NULL DEFAULT 'other',
+        "reason_detail" text,
+        "status" text NOT NULL DEFAULT 'requested',
+        "action" text,
+        "admin_notes" text,
+        "items" jsonb DEFAULT '[]',
+        "created_at" timestamp NOT NULL DEFAULT now(),
+        "updated_at" timestamp NOT NULL DEFAULT now()
+      );
+      CREATE INDEX IF NOT EXISTS "returns_order_idx" ON "${SCHEMA}"."order_returns" ("order_id");
+      CREATE INDEX IF NOT EXISTS "returns_customer_idx" ON "${SCHEMA}"."order_returns" ("customer_id");
     `);
 
     // Insert default settings
