@@ -5,15 +5,18 @@ import { eq, ne, and } from "drizzle-orm";
 
 async function getAiConfig() {
   const rows = await db.select().from(settings);
-  const map: Record<string, unknown> = {};
+  const map: Record<string, string> = {};
   for (const row of rows) {
-    map[row.key] = row.value;
+    if (row.value !== null && row.value !== undefined) {
+      map[row.key] = String(row.value);
+    }
   }
 
   return {
-    baseURL: String(map.ai_base_url || process.env.AI_BASE_URL || "https://chat-ai.academiccloud.de/v1"),
-    apiKey: String(map.ai_api_key || process.env.AI_API_KEY || ""),
-    model: String(map.ai_model || process.env.AI_MODEL || "gpt-4"),
+    baseURL: map.ai_base_url || process.env.AI_BASE_URL || "https://chat-ai.academiccloud.de/v1",
+    apiKey: map.ai_api_key || process.env.AI_API_KEY || "",
+    model: map.ai_model || process.env.AI_MODEL || "qwen3.5-397b-a17b",
+    relatedInstructions: map.ai_related_instructions || "",
   };
 }
 
@@ -68,7 +71,7 @@ export async function getRelatedProductSuggestions(
       messages: [
         {
           role: "system",
-          content: `You are a product recommendation engine for "3DPrintIt", an online shop for model railway (Modelleisenbahn) and 3D printed parts. Your task is to identify products that are closely related to a given product — items that complement it, are accessories for it, or are commonly purchased together. Respond ONLY with valid JSON.`,
+          content: `You are a product recommendation engine for "3DPrintIt", an online shop for model railway (Modelleisenbahn) and 3D printed parts. Your task is to identify products that are closely related to a given product — items that complement it, are accessories for it, or are commonly purchased together. Respond ONLY with a valid JSON array.${config.relatedInstructions ? " " + config.relatedInstructions : ""}`,
         },
         {
           role: "user",
@@ -94,9 +97,13 @@ Only include products with confidence >= 0.5. Maximum 10 suggestions.`,
       ],
       temperature: 0.3,
       max_tokens: 2000,
+      // Disable chain-of-thought thinking for Qwen3 thinking models
+      // @ts-expect-error — provider-specific extension not in types
+      chat_template_kwargs: { enable_thinking: false },
     });
 
-    const content = response.choices[0]?.message?.content || "[]";
+    const rawContent = response.choices[0]?.message?.content ?? "";
+    const content = rawContent || "[]";
 
     // Parse JSON from the response
     let suggestions: Array<{

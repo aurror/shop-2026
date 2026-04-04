@@ -33,7 +33,11 @@ const tabSettingKeys: Record<TabKey, string[]> = {
   payment: ["payment_stripe_enabled", "payment_klarna_enabled", "payment_bank_transfer_enabled", "payment_stripe_key", "payment_stripe_secret"],
   email: ["email_from_address", "email_from_name", "email_smtp_host", "email_smtp_port", "email_smtp_user", "email_smtp_pass"],
   legal: ["legal_imprint", "legal_privacy", "legal_terms", "legal_revocation"],
-  ai: ["ai_enabled", "ai_provider", "ai_model", "ai_api_key", "ai_base_url", "ai_auto_suggest", "ai_writing_style", "ai_no_emojis", "ai_language", "ai_custom_instructions"],
+  ai: [
+    "ai_enabled", "ai_provider", "ai_model", "ai_api_key", "ai_base_url", "ai_auto_suggest",
+    "ai_writing_style", "ai_no_emojis", "ai_language", "ai_custom_instructions",
+    "ai_title_instructions", "ai_description_instructions", "ai_related_instructions",
+  ],
   backup: ["backup_auto_enabled", "backup_schedule", "backup_s3_bucket", "backup_s3_region", "backup_s3_key", "backup_s3_secret", "backup_retention_days"],
   roles: [],
 };
@@ -70,11 +74,14 @@ const settingLabels: Record<string, { de: string; en: string }> = {
   ai_model: { de: "KI Modell", en: "AI Model" },
   ai_api_key: { de: "KI API Key", en: "AI API Key" },
   ai_base_url: { de: "KI API Base URL", en: "AI API Base URL" },
-  ai_auto_suggest: { de: "Auto-Vorschläge", en: "Auto Suggestions" },
+  ai_auto_suggest: { de: "Auto-Vorschläge (verwandte Produkte)", en: "Auto Suggestions (related products)" },
   ai_writing_style: { de: "Schreibstil", en: "Writing Style" },
   ai_no_emojis: { de: "Keine Emojis", en: "No Emojis" },
   ai_language: { de: "Sprache (z.B. Deutsch)", en: "Language (e.g. German)" },
-  ai_custom_instructions: { de: "Eigene Anweisungen (Prompt-Zusatz)", en: "Custom Instructions (prompt addition)" },
+  ai_custom_instructions: { de: "Globale Anweisungen (gilt für alle KI-Funktionen)", en: "Global Instructions (applies to all AI features)" },
+  ai_title_instructions: { de: "Zusatz für Titeloptimierung", en: "Title optimization additions" },
+  ai_description_instructions: { de: "Zusatz für Beschreibungsoptimierung", en: "Description optimization additions" },
+  ai_related_instructions: { de: "Zusatz für verwandte Produkte", en: "Related products additions" },
   backup_auto_enabled: { de: "Auto-Backup aktiviert", en: "Auto Backup Enabled" },
   backup_schedule: { de: "Backup Zeitplan", en: "Backup Schedule" },
   backup_s3_bucket: { de: "S3 Bucket", en: "S3 Bucket" },
@@ -102,6 +109,9 @@ const textareaSettings = new Set([
   "store_address",
   "shipping_countries",
   "ai_custom_instructions",
+  "ai_title_instructions",
+  "ai_description_instructions",
+  "ai_related_instructions",
 ]);
 
 const secretSettings = new Set([
@@ -269,14 +279,20 @@ export default function AdminSettingsPage() {
     }
 
     if (textareaSettings.has(key)) {
+      const placeholders: Record<string, string> = {
+        ai_custom_instructions: "z.B. Verwende keine Fachbegriffe. Halte die Texte kurz.",
+        ai_title_instructions: "z.B. Erwähne immer die Spurweite am Anfang des Titels.",
+        ai_description_instructions: "z.B. Füge immer einen Abschnitt 'Technische Details' mit ul-Liste ein.",
+        ai_related_instructions: "z.B. Bevorzuge Produkte der gleichen Marke oder des gleichen Maßstabs.",
+      };
       return (
         <Textarea
           key={key}
           label={getLabel(key)}
           value={typeof value === "string" ? value : value ? JSON.stringify(value) : ""}
           onChange={(e) => updateValue(key, e.target.value)}
-          rows={key === "ai_custom_instructions" ? 3 : 4}
-          placeholder={key === "ai_custom_instructions" ? "z.B. Verwende keine Fachbegriffe. Erwähne immer die Kompatibilität mit anderen Produkten." : undefined}
+          rows={key.startsWith("ai_") ? 2 : 4}
+          placeholder={placeholders[key]}
         />
       );
     }
@@ -340,6 +356,47 @@ export default function AdminSettingsPage() {
                 <p className="text-sm text-neutral-500">
                   {locale === "en" ? "No settings for this section." : "Keine Einstellungen für diesen Bereich."}
                 </p>
+              ) : activeTab === "ai" ? (
+                /* AI tab — grouped sections */
+                <div className="space-y-8">
+                  {/* Connection */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                      {locale === "en" ? "Connection" : "Verbindung"}
+                    </h3>
+                    {["ai_enabled", "ai_provider", "ai_model", "ai_api_key", "ai_base_url", "ai_auto_suggest"].map((k) => renderSettingField(k))}
+                  </div>
+
+                  <div className="border-t border-neutral-100" />
+
+                  {/* Global writing style */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                      {locale === "en" ? "Writing Style (global)" : "Schreibstil (global)"}
+                    </h3>
+                    <p className="text-xs text-neutral-500">
+                      {locale === "en"
+                        ? "These apply to all AI text generation features."
+                        : "Diese Einstellungen gelten für alle KI-Textfunktionen."}
+                    </p>
+                    {["ai_writing_style", "ai_no_emojis", "ai_language", "ai_custom_instructions"].map((k) => renderSettingField(k))}
+                  </div>
+
+                  <div className="border-t border-neutral-100" />
+
+                  {/* Per-feature prompt additions */}
+                  <div className="space-y-4">
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                      {locale === "en" ? "Per-feature Prompt Additions" : "Zusatzanweisungen je Funktion"}
+                    </h3>
+                    <p className="text-xs text-neutral-500">
+                      {locale === "en"
+                        ? "Optional extra instructions appended to the prompt for each specific AI feature, in addition to the global settings above."
+                        : "Optionale zusätzliche Anweisungen, die je nach KI-Funktion an den Prompt angehängt werden – ergänzend zu den globalen Einstellungen oben."}
+                    </p>
+                    {["ai_title_instructions", "ai_description_instructions", "ai_related_instructions"].map((k) => renderSettingField(k))}
+                  </div>
+                </div>
               ) : (
                 <div className="space-y-4">
                   {tabSettingKeys[activeTab].map((key) => renderSettingField(key))}
