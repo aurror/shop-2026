@@ -8,7 +8,7 @@ import { Textarea } from "@/components/shared/Textarea";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/components/shared/Toast";
 
-type TabKey = "general" | "shipping" | "payment" | "email" | "legal" | "ai" | "telegram" | "backup" | "roles";
+type TabKey = "general" | "shipping" | "payment" | "email" | "legal" | "ai" | "telegram" | "backup" | "roles" | "updates";
 
 interface Tab {
   key: TabKey;
@@ -25,6 +25,7 @@ const tabs: Tab[] = [
   { key: "telegram", labelKey: "telegram" },
   { key: "backup", labelKey: "backupSettings" },
   { key: "roles", labelKey: "roleManagement" },
+  { key: "updates", labelKey: "updates" as any },
 ];
 
 // Setting keys grouped by tab
@@ -42,6 +43,7 @@ const tabSettingKeys: Record<TabKey, string[]> = {
   backup: ["backup_auto_enabled", "backup_schedule", "backup_s3_bucket", "backup_s3_region", "backup_s3_key", "backup_s3_secret", "backup_retention_days"],
   telegram: ["telegram_bot_token"],
   roles: [],
+  updates: [],
 };
 
 const settingLabels: Record<string, { de: string; en: string }> = {
@@ -350,6 +352,8 @@ export default function AdminSettingsPage() {
             </div>
           ) : activeTab === "roles" ? (
             <RolesTabContent locale={locale} />
+          ) : activeTab === "updates" ? (
+            <UpdatesTabContent locale={locale} />
           ) : (
             <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
               <h2 className="mb-6 text-lg font-semibold text-neutral-900">
@@ -663,6 +667,161 @@ function RolesTabContent({ locale }: { locale: string }) {
               </span>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Updates tab
+function UpdatesTabContent({ locale }: { locale: string }) {
+  const [status, setStatus] = useState<{
+    updateAvailable: boolean;
+    currentCommit: string;
+    remoteCommit: string;
+    lastDeployAt: string;
+    commits: { hash: string; message: string; author: string; age: string }[];
+  } | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [deploying, setDeploying] = useState(false);
+  const [deployMessage, setDeployMessage] = useState("");
+  const [error, setError] = useState("");
+
+  async function checkForUpdates() {
+    setChecking(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/updates");
+      if (!res.ok) throw new Error();
+      const data = await res.json();
+      setStatus(data);
+    } catch {
+      setError(locale === "en" ? "Could not check for updates." : "Konnte nicht nach Updates suchen.");
+    } finally {
+      setChecking(false);
+    }
+  }
+
+  async function applyUpdate() {
+    setDeploying(true);
+    setDeployMessage("");
+    setError("");
+    try {
+      const res = await fetch("/api/admin/updates", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+      setDeployMessage(
+        locale === "en"
+          ? "Deploy started. The server will update and restart. This page may briefly become unavailable."
+          : "Deploy gestartet. Der Server aktualisiert sich und startet neu. Die Seite kann kurz nicht verfügbar sein."
+      );
+    } catch (e: any) {
+      setError(e.message || (locale === "en" ? "Deploy failed." : "Deploy fehlgeschlagen."));
+    } finally {
+      setDeploying(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+      <h2 className="mb-1 text-lg font-semibold text-neutral-900">Updates</h2>
+      <p className="mb-6 text-sm text-neutral-500">
+        {locale === "en"
+          ? "Check if a new version is available on the main branch and apply it."
+          : "Prüfen ob eine neue Version auf dem main-Branch verfügbar ist und diese einspielen."}
+      </p>
+
+      <button
+        type="button"
+        onClick={checkForUpdates}
+        disabled={checking}
+        className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 bg-white px-4 py-2 text-sm font-medium text-neutral-700 transition-colors hover:bg-neutral-50 disabled:opacity-50"
+      >
+        {checking ? (
+          <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+          </svg>
+        ) : (
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0 3.181 3.183a8.25 8.25 0 0 0 13.803-3.7M4.031 9.865a8.25 8.25 0 0 1 13.803-3.7l3.181 3.182m0-4.991v4.99" />
+          </svg>
+        )}
+        {locale === "en" ? "Check for updates" : "Nach Updates suchen"}
+      </button>
+
+      {error && (
+        <p className="mt-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
+      )}
+      {deployMessage && (
+        <p className="mt-4 rounded-lg border border-green-100 bg-green-50 px-4 py-3 text-sm text-green-700">{deployMessage}</p>
+      )}
+
+      {status && (
+        <div className="mt-6 space-y-6">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-4">
+              <p className="text-xs text-neutral-500">{locale === "en" ? "Installed version" : "Installierte Version"}</p>
+              <p className="mt-1 font-mono text-sm font-semibold text-neutral-900">{status.currentCommit}</p>
+            </div>
+            <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-4">
+              <p className="text-xs text-neutral-500">{locale === "en" ? "Latest on main" : "Neueste Version (main)"}</p>
+              <p className="mt-1 font-mono text-sm font-semibold text-neutral-900">{status.remoteCommit}</p>
+            </div>
+            <div className="rounded-lg border border-neutral-100 bg-neutral-50 p-4">
+              <p className="text-xs text-neutral-500">{locale === "en" ? "Last deployed" : "Zuletzt eingespielt"}</p>
+              <p className="mt-1 text-sm font-semibold text-neutral-900">{status.lastDeployAt || "–"}</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {status.updateAvailable ? (
+              <>
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  {locale === "en" ? "Update available" : "Update verfügbar"}
+                </span>
+                <button
+                  type="button"
+                  onClick={applyUpdate}
+                  disabled={deploying}
+                  className="inline-flex items-center gap-2 rounded-lg bg-black px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-neutral-800 disabled:opacity-50"
+                >
+                  {deploying && (
+                    <svg className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4l3-3-3-3v4a8 8 0 00-8 8h4z" />
+                    </svg>
+                  )}
+                  {locale === "en" ? "Apply update now" : "Update jetzt einspielen"}
+                </button>
+              </>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1 text-xs font-medium text-green-700 ring-1 ring-green-200">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                {locale === "en" ? "Up to date" : "Aktuell"}
+              </span>
+            )}
+          </div>
+
+          {status.commits.length > 0 && (
+            <div>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                {locale === "en" ? "Recent commits on main" : "Letzte Commits auf main"}
+              </h3>
+              <div className="divide-y divide-neutral-100 rounded-lg border border-neutral-200 bg-white">
+                {status.commits.map((c) => (
+                  <div key={c.hash} className="flex items-start gap-3 px-4 py-3">
+                    <span className="mt-0.5 font-mono text-xs text-neutral-400">{c.hash.slice(0, 7)}</span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-neutral-800">{c.message}</p>
+                      <p className="text-xs text-neutral-400">{c.author} · {c.age}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>
