@@ -39,8 +39,9 @@ echo "[3/5] Installing dependencies..." | tee -a "$LOG_FILE"
 export NVM_DIR="$HOME/.nvm"
 # shellcheck disable=SC1091
 [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
+nvm install 24 2>&1 | tee -a "$LOG_FILE"
 nvm use 24 2>&1 | tee -a "$LOG_FILE"
-npm install --prefer-offline 2>&1 | tee -a "$LOG_FILE"
+npm ci 2>&1 | tee -a "$LOG_FILE"
 
 echo "[4/5] Building..." | tee -a "$LOG_FILE"
 npm run build 2>&1 | tee -a "$LOG_FILE"
