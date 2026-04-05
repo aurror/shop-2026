@@ -41,7 +41,11 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && source "$NVM_DIR/nvm.sh"
 nvm install 24 2>&1 | tee -a "$LOG_FILE"
 nvm use 24 2>&1 | tee -a "$LOG_FILE"
-npm ci 2>&1 | tee -a "$LOG_FILE"
+if [ -f "$APP_DIR/package-lock.json" ]; then
+  npm ci 2>&1 | tee -a "$LOG_FILE"
+else
+  npm install 2>&1 | tee -a "$LOG_FILE"
+fi
 
 echo "[4/5] Building..." | tee -a "$LOG_FILE"
 npm run build 2>&1 | tee -a "$LOG_FILE"
