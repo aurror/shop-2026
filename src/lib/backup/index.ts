@@ -55,9 +55,10 @@ export async function createLocalBackup(): Promise<{
 
     const dbUrl = process.env.DATABASE_URL || "";
 
-    // pg_dump the specific schema
+    const { host, port, user, password, db: dbName } = parseDbUrl(dbUrl);
+    const escapedPw = password.replace(/'/g, "'\\''"); // shell-safe
     await execAsync(
-      `PGPASSWORD="${getPasswordFromUrl(dbUrl)}" pg_dump -h "${getHostFromUrl(dbUrl)}" -p ${getPortFromUrl(dbUrl)} -U "${getUserFromUrl(dbUrl)}" -d "${getDbFromUrl(dbUrl)}" --schema="${SCHEMA}" --no-owner --no-privileges | gzip > "${filePath}"`,
+      `bash -c 'set -o pipefail; PGPASSWORD="${escapedPw}" pg_dump -h "${host}" -p ${port} -U "${user}" -d "${dbName}" --schema="${SCHEMA}" --no-owner --no-privileges | gzip > "${filePath}"'`,
       { timeout: 300000 } // 5 minute timeout
     );
 
@@ -185,28 +186,19 @@ async function cleanOldBackups(dir: string, keep: number) {
   }
 }
 
-// URL parsing helpers
-function getHostFromUrl(url: string): string {
-  const match = url.match(/@([^:]+):/);
-  return match?.[1] || "localhost";
-}
-
-function getPortFromUrl(url: string): number {
-  const match = url.match(/:(\d+)\//);
-  return match ? parseInt(match[1]) : 5432;
-}
-
-function getUserFromUrl(url: string): string {
-  const match = url.match(/\/\/([^:]+):/);
-  return match?.[1] || "postgres";
-}
-
-function getPasswordFromUrl(url: string): string {
-  const match = url.match(/:\/\/[^:]+:([^@]+)@/);
-  return match?.[1] || "";
-}
-
-function getDbFromUrl(url: string): string {
-  const match = url.match(/\/(\w+)$/);
-  return match?.[1] || "postgres";
+// URL parsing helper
+function parseDbUrl(url: string): { host: string; port: number; user: string; password: string; db: string } {
+  try {
+    const normalized = url.replace(/^postgresql:\/\//, "https://").replace(/^postgres:\/\//, "https://");
+    const parsed = new URL(normalized);
+    return {
+      host: parsed.hostname || "localhost",
+      port: parseInt(parsed.port) || 5432,
+      user: decodeURIComponent(parsed.username) || "postgres",
+      password: decodeURIComponent(parsed.password) || "",
+      db: parsed.pathname.slice(1) || "postgres",
+    };
+  } catch {
+    return { host: "localhost", port: 5432, user: "postgres", password: "", db: "postgres" };
+  }
 }

@@ -8,7 +8,7 @@ import { Textarea } from "@/components/shared/Textarea";
 import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
 import { useToast } from "@/components/shared/Toast";
 
-type TabKey = "general" | "shipping" | "payment" | "email" | "legal" | "ai" | "telegram" | "backup" | "roles" | "updates";
+type TabKey = "general" | "shipping" | "payment" | "email" | "legal" | "ai" | "telegram" | "backup" | "roles" | "updates" | "emergency";
 
 interface Tab {
   key: TabKey;
@@ -26,6 +26,7 @@ const tabs: Tab[] = [
   { key: "backup", labelKey: "backupSettings" },
   { key: "roles", labelKey: "roleManagement" },
   { key: "updates", labelKey: "updates" as any },
+  { key: "emergency", labelKey: "emergency" as any },
 ];
 
 // Setting keys grouped by tab
@@ -44,6 +45,7 @@ const tabSettingKeys: Record<TabKey, string[]> = {
   telegram: ["telegram_bot_token"],
   roles: [],
   updates: [],
+  emergency: ["shop_enabled", "ordering_enabled", "maintenance_message", "ordering_disabled_message"],
 };
 
 const settingLabels: Record<string, { de: string; en: string }> = {
@@ -96,6 +98,10 @@ const settingLabels: Record<string, { de: string; en: string }> = {
   backup_s3_secret: { de: "S3 Secret Key", en: "S3 Secret Key" },
   backup_s3_endpoint: { de: "S3 Endpoint (optional)", en: "S3 Endpoint (optional)" },
   telegram_bot_token: { de: "Telegram Bot Token", en: "Telegram Bot Token" },
+  shop_enabled: { de: "Shop aktiv", en: "Shop Enabled" },
+  ordering_enabled: { de: "Bestellungen aktiv", en: "Ordering Enabled" },
+  maintenance_message: { de: "Wartungsmeldung (Shop geschlossen)", en: "Maintenance Message (shop closed)" },
+  ordering_disabled_message: { de: "Meldung bei deaktivierten Bestellungen", en: "Ordering Disabled Message" },
 };
 
 const booleanSettings = new Set([
@@ -106,6 +112,8 @@ const booleanSettings = new Set([
   "ai_auto_suggest",
   "ai_no_emojis",
   "backup_auto_enabled",
+  "shop_enabled",
+  "ordering_enabled",
 ]);
 
 const textareaSettings = new Set([
@@ -119,6 +127,8 @@ const textareaSettings = new Set([
   "ai_title_instructions",
   "ai_description_instructions",
   "ai_related_instructions",
+  "maintenance_message",
+  "ordering_disabled_message",
 ]);
 
 const secretSettings = new Set([
@@ -356,6 +366,15 @@ export default function AdminSettingsPage() {
             <RolesTabContent locale={locale} />
           ) : activeTab === "updates" ? (
             <UpdatesTabContent locale={locale} />
+          ) : activeTab === "emergency" ? (
+            <EmergencyTabContent
+              formValues={formValues}
+              updateValue={updateValue}
+              handleSave={handleSave}
+              saving={saving}
+              locale={locale}
+              renderSettingField={renderSettingField}
+            />
           ) : (
             <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
               <h2 className="mb-6 text-lg font-semibold text-neutral-900">
@@ -599,6 +618,55 @@ function TelegramTabContent({
             ))}
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+function EmergencyTabContent({
+  renderSettingField,
+  handleSave,
+  saving,
+  locale,
+}: {
+  formValues: Record<string, any>;
+  updateValue: (key: string, value: any) => void;
+  handleSave: () => void;
+  saving: boolean;
+  locale: string;
+  renderSettingField: (key: string) => React.ReactNode;
+}) {
+  return (
+    <div className="rounded-xl border border-red-200 bg-white p-6 shadow-sm">
+      <div className="mb-6 flex items-start gap-3">
+        <svg className="mt-0.5 h-5 w-5 shrink-0 text-red-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" />
+        </svg>
+        <div>
+          <h2 className="text-lg font-semibold text-neutral-900">
+            {locale === "en" ? "Emergency & Maintenance" : "Notfall & Wartung"}
+          </h2>
+          <p className="mt-1 text-sm text-neutral-500">
+            {locale === "en"
+              ? "Quickly disable the shop or ordering in case of issues. Changes take effect immediately."
+              : "Deaktiviere den Shop oder Bestellungen schnell bei Problemen. Änderungen wirken sofort."}
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-4">
+        {["shop_enabled", "ordering_enabled", "maintenance_message", "ordering_disabled_message"].map((k) => renderSettingField(k))}
+      </div>
+
+      <div className="mt-6 flex justify-end border-t border-neutral-100 pt-4">
+        <button
+          type="button"
+          disabled={saving}
+          onClick={handleSave}
+          className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+        >
+          {saving ? (locale === "en" ? "Saving…" : "Speichern…") : (locale === "en" ? "Save emergency settings" : "Notfalleinstellungen speichern")}
+        </button>
       </div>
     </div>
   );

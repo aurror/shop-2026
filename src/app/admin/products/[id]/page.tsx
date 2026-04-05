@@ -184,6 +184,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setDragOver(false);
     if (e.dataTransfer.files.length > 0) {
       handleUpload(e.dataTransfer.files);
@@ -510,7 +511,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
             <h2 className="mb-4 text-sm font-semibold text-neutral-900">{t("images")}</h2>
             <div
-              onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+              onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
+              onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
               onDrop={handleDrop}
               className={`flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors ${dragOver ? "border-neutral-900 bg-neutral-50" : "border-neutral-300"}`}
