@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { db } from "@/lib/db";
-import { categories } from "@/lib/db/schema";
+import { categories, products } from "@/lib/db/schema";
 import { eq, asc, sql } from "drizzle-orm";
-import { products } from "@/lib/db/schema";
 
 async function requireAdmin() {
   const session = await auth();
@@ -25,9 +24,18 @@ export async function GET() {
       description: categories.description,
       parentId: categories.parentId,
       sortOrder: categories.sortOrder,
-      productCount: sql<number>`(SELECT count(*) FROM ${products} WHERE ${products.categoryId} = ${categories.id})`,
+      productCount: sql<number>`cast(count(${products.id}) as integer)`,
     })
     .from(categories)
+    .leftJoin(products, eq(products.categoryId, categories.id))
+    .groupBy(
+      categories.id,
+      categories.name,
+      categories.slug,
+      categories.description,
+      categories.parentId,
+      categories.sortOrder,
+    )
     .orderBy(asc(categories.sortOrder), asc(categories.name));
 
   return NextResponse.json({ categories: cats });

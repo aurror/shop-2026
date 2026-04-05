@@ -22,6 +22,7 @@ interface Category {
   id: string;
   name: string;
   slug: string;
+  parentId?: string | null;
   productCount: number;
 }
 
@@ -146,7 +147,7 @@ export function ProductsClient({
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
       {/* Title */}
-      <div className="mb-8">
+      <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight text-black sm:text-3xl">
           {category && activeCategoryName
             ? activeCategoryName
@@ -155,231 +156,270 @@ export function ProductsClient({
             : "Alle Produkte"}
         </h1>
         {pagination.total > 0 && (
-          <p className="mt-2 text-sm text-neutral-500">
+          <p className="mt-1 text-sm text-neutral-500">
             {pagination.total} {pagination.total === 1 ? "Produkt" : "Produkte"}
           </p>
         )}
       </div>
 
-      {/* Category filter pills */}
-      {categories.length > 0 && (
-        <div className="mb-6 flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => updateUrl({ category: "", page: "" })}
-            className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-              !category
-                ? "bg-black text-white"
-                : "border border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50"
-            }`}
-          >
-            Alle
-          </button>
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              onClick={() => handleCategoryClick(cat.slug)}
-              className={`rounded-full px-4 py-1.5 text-sm font-medium transition-colors ${
-                category === cat.slug
-                  ? "bg-black text-white"
-                  : "border border-neutral-200 bg-white text-neutral-600 hover:border-neutral-300 hover:bg-neutral-50"
-              }`}
-            >
-              {cat.name}
-              {cat.productCount > 0 && (
-                <span className={`ml-1.5 text-xs ${category === cat.slug ? "text-white/70" : "text-neutral-400"}`}>
-                  {cat.productCount}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
+      <div className="flex gap-8">
+        {/* Category sidebar */}
+        {categories.length > 0 && (() => {
+          const roots = categories.filter(c => !c.parentId);
+          const childrenOf = (id: string) => categories.filter(c => c.parentId === id);
 
-      {/* Filters bar */}
-      <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        {/* Search */}
-        <form onSubmit={handleSearch} className="flex gap-2">
-          <input
-            type="text"
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Produkt suchen..."
-            className="h-10 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-black placeholder-neutral-400 outline-none transition-colors focus:border-neutral-400 sm:w-64"
-          />
-          <button
-            type="submit"
-            className="flex h-10 items-center justify-center rounded-lg bg-black px-4 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
-          >
-            Suchen
-          </button>
-        </form>
-
-        {/* Sort */}
-        <div className="flex items-center gap-2">
-          <label htmlFor="sort" className="text-xs text-neutral-500">
-            Sortierung:
-          </label>
-          <select
-            id="sort"
-            value={sort}
-            onChange={(e) => handleSort(e.target.value)}
-            className="h-10 rounded-lg border border-neutral-200 bg-white px-3 pr-8 text-sm text-black outline-none transition-colors focus:border-neutral-400"
-          >
-            {SORT_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* Active filters */}
-      {(search || featured) && (
-        <div className="mb-6 flex flex-wrap items-center gap-2">
-          {search && (
-            <button
-              type="button"
-              onClick={() => {
-                setSearch("");
-                setSearchInput("");
-                updateUrl({ search: "", page: "" });
-              }}
-              className="inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
-            >
-              Suche: {search}
-              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-          {featured && (
-            <button
-              type="button"
-              onClick={() => updateUrl({ featured: "", page: "" })}
-              className="inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
-            >
-              Empfohlen
-              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-        </div>
-      )}
-
-      {/* Products grid */}
-      {loading ? (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="animate-pulse">
-              <div className="aspect-square rounded-xl bg-neutral-100" />
-              <div className="mt-4 space-y-2 px-1">
-                <div className="h-4 w-3/4 rounded bg-neutral-100" />
-                <div className="h-4 w-1/4 rounded bg-neutral-100" />
+          const renderCat = (cat: Category, depth = 0) => {
+            const isActive = category === cat.slug;
+            const kids = childrenOf(cat.id);
+            // Auto-expand parent when a child is active
+            const childActive = kids.some(k => k.slug === category);
+            return (
+              <div key={cat.id}>
+                <button
+                  type="button"
+                  onClick={() => handleCategoryClick(cat.slug)}
+                  style={{ paddingLeft: depth > 0 ? `${depth * 12 + 8}px` : "8px" }}
+                  className={`flex w-full items-center gap-1.5 rounded-lg py-1.5 pr-2 text-left text-sm transition-colors ${
+                    isActive
+                      ? "bg-black font-medium text-white"
+                      : "text-neutral-700 hover:bg-neutral-100"
+                  }`}
+                >
+                  {depth > 0 && (
+                    <span className={`text-xs ${isActive ? "text-white/40" : "text-neutral-300"}`}>└</span>
+                  )}
+                  <span className="flex-1 truncate">{cat.name}</span>
+                  {cat.productCount > 0 && (
+                    <span className={`shrink-0 text-xs tabular-nums ${isActive ? "text-white/60" : "text-neutral-400"}`}>
+                      {cat.productCount}
+                    </span>
+                  )}
+                </button>
+                {(isActive || childActive || depth === 0) && kids.map(child => renderCat(child, depth + 1))}
               </div>
-            </div>
-          ))}
-        </div>
-      ) : products.length === 0 ? (
-        <div className="py-20 text-center">
-          <svg
-            className="mx-auto h-12 w-12 text-neutral-300"
-            fill="none"
-            viewBox="0 0 24 24"
-            strokeWidth={1}
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z"
-            />
-          </svg>
-          <h2 className="mt-4 text-base font-semibold text-black">
-            Keine Produkte gefunden
-          </h2>
-          <p className="mt-2 text-sm text-neutral-500">
-            Versuchen Sie einen anderen Suchbegriff oder wählen Sie eine andere Kategorie.
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {products.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
-      )}
+            );
+          };
 
-      {/* Pagination */}
-      {pagination.totalPages > 1 && (
-        <div className="mt-12 flex items-center justify-center gap-1">
-          <button
-            type="button"
-            onClick={() => handlePageChange(page - 1)}
-            disabled={page <= 1}
-            className="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <svg className="mr-1 h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-            </svg>
-            Zurück
-          </button>
-
-          <div className="flex items-center gap-1">
-            {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
-              .filter((p) => {
-                if (pagination.totalPages <= 7) return true;
-                if (p === 1 || p === pagination.totalPages) return true;
-                if (Math.abs(p - page) <= 1) return true;
-                return false;
-              })
-              .reduce<(number | "ellipsis")[]>((acc, p, idx, arr) => {
-                if (idx > 0 && p - (arr[idx - 1] as number) > 1) {
-                  acc.push("ellipsis");
-                }
-                acc.push(p);
-                return acc;
-              }, [])
-              .map((p, idx) =>
-                p === "ellipsis" ? (
-                  <span key={`e-${idx}`} className="px-2 py-2 text-sm text-neutral-400">
-                    &hellip;
+          return (
+            <aside className="hidden w-52 shrink-0 lg:block">
+              <div className="sticky top-24 space-y-0.5">
+                <p className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-widest text-neutral-400">Kategorien</p>
+                <button
+                  type="button"
+                  onClick={() => updateUrl({ category: "", page: "" })}
+                  className={`flex w-full items-center justify-between rounded-lg px-2 py-1.5 text-left text-sm transition-colors ${
+                    !category ? "bg-black font-medium text-white" : "text-neutral-700 hover:bg-neutral-100"
+                  }`}
+                >
+                  <span>Alle Produkte</span>
+                  <span className={`text-xs tabular-nums ${!category ? "text-white/60" : "text-neutral-400"}`}>
+                    {categories.reduce((s, c) => s + (c.parentId ? 0 : c.productCount), 0) || ""}
                   </span>
-                ) : (
-                  <button
-                    key={p}
-                    type="button"
-                    onClick={() => handlePageChange(p as number)}
-                    className={`min-w-[36px] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                      p === page
-                        ? "bg-black text-white"
-                        : "text-neutral-600 hover:bg-neutral-100"
-                    }`}
-                  >
-                    {p}
-                  </button>
-                )
-              )}
+                </button>
+                {roots.map(cat => renderCat(cat, 0))}
+              </div>
+            </aside>
+          );
+        })()}
+
+        {/* Main content */}
+        <div className="min-w-0 flex-1">
+          {/* Mobile category pills */}
+          {categories.length > 0 && (
+            <div className="mb-4 flex flex-wrap gap-2 lg:hidden">
+              <button
+                type="button"
+                onClick={() => updateUrl({ category: "", page: "" })}
+                className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                  !category ? "bg-black text-white" : "border border-neutral-200 bg-white text-neutral-600"
+                }`}
+              >
+                Alle
+              </button>
+              {categories.filter(c => !c.parentId).map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => handleCategoryClick(cat.slug)}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    category === cat.slug
+                      ? "bg-black text-white"
+                      : "border border-neutral-200 bg-white text-neutral-600"
+                  }`}
+                >
+                  {cat.name}
+                  {cat.productCount > 0 && (
+                    <span className={`ml-1 ${category === cat.slug ? "text-white/70" : "text-neutral-400"}`}>
+                      {cat.productCount}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Filters bar */}
+          <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            {/* Search */}
+            <form onSubmit={handleSearch} className="flex gap-2">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Produkt suchen..."
+                className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-black placeholder-neutral-400 outline-none transition-colors focus:border-neutral-400 sm:w-56"
+              />
+              <button
+                type="submit"
+                className="flex h-9 items-center justify-center rounded-lg bg-black px-4 text-sm font-medium text-white transition-colors hover:bg-neutral-800"
+              >
+                Suchen
+              </button>
+            </form>
+
+            {/* Sort */}
+            <div className="flex items-center gap-2">
+              <label htmlFor="sort" className="text-xs text-neutral-500">
+                Sortierung:
+              </label>
+              <select
+                id="sort"
+                value={sort}
+                onChange={(e) => handleSort(e.target.value)}
+                className="h-9 rounded-lg border border-neutral-200 bg-white px-3 pr-8 text-sm text-black outline-none transition-colors focus:border-neutral-400"
+              >
+                {SORT_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => handlePageChange(page + 1)}
-            disabled={page >= pagination.totalPages}
-            className="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Weiter
-            <svg className="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-            </svg>
-          </button>
-        </div>
-      )}
+          {/* Active filters */}
+          {(search || featured) && (
+            <div className="mb-5 flex flex-wrap items-center gap-2">
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => { setSearch(""); setSearchInput(""); updateUrl({ search: "", page: "" }); }}
+                  className="inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
+                >
+                  Suche: {search}
+                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+              {featured && (
+                <button
+                  type="button"
+                  onClick={() => updateUrl({ featured: "", page: "" })}
+                  className="inline-flex items-center gap-1 rounded-full border border-neutral-200 bg-white px-3 py-1 text-xs font-medium text-neutral-700 transition-colors hover:bg-neutral-50"
+                >
+                  Empfohlen
+                  <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Products grid */}
+          {loading ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="aspect-square rounded-xl bg-neutral-100" />
+                  <div className="mt-4 space-y-2 px-1">
+                    <div className="h-4 w-3/4 rounded bg-neutral-100" />
+                    <div className="h-4 w-1/4 rounded bg-neutral-100" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : products.length === 0 ? (
+            <div className="py-20 text-center">
+              <svg className="mx-auto h-12 w-12 text-neutral-300" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+              </svg>
+              <h2 className="mt-4 text-base font-semibold text-black">Keine Produkte gefunden</h2>
+              <p className="mt-2 text-sm text-neutral-500">
+                Versuchen Sie einen anderen Suchbegriff oder wählen Sie eine andere Kategorie.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
+
+          {/* Pagination */}
+          {pagination.totalPages > 1 && (
+            <div className="mt-12 flex items-center justify-center gap-1">
+              <button
+                type="button"
+                onClick={() => handlePageChange(page - 1)}
+                disabled={page <= 1}
+                className="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                <svg className="mr-1 h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+                Zurück
+              </button>
+
+              <div className="flex items-center gap-1">
+                {Array.from({ length: pagination.totalPages }, (_, i) => i + 1)
+                  .filter((p) => {
+                    if (pagination.totalPages <= 7) return true;
+                    if (p === 1 || p === pagination.totalPages) return true;
+                    if (Math.abs(p - page) <= 1) return true;
+                    return false;
+                  })
+                  .reduce<(number | "ellipsis")[]>((acc, p, idx, arr) => {
+                    if (idx > 0 && p - (arr[idx - 1] as number) > 1) acc.push("ellipsis");
+                    acc.push(p);
+                    return acc;
+                  }, [])
+                  .map((p, idx) =>
+                    p === "ellipsis" ? (
+                      <span key={`e-${idx}`} className="px-2 py-2 text-sm text-neutral-400">&hellip;</span>
+                    ) : (
+                      <button
+                        key={p}
+                        type="button"
+                        onClick={() => handlePageChange(p as number)}
+                        className={`min-w-[36px] rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                          p === page ? "bg-black text-white" : "text-neutral-600 hover:bg-neutral-100"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => handlePageChange(page + 1)}
+                disabled={page >= pagination.totalPages}
+                className="inline-flex items-center rounded-lg px-3 py-2 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-100 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Weiter
+                <svg className="ml-1 h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                </svg>
+              </button>
+            </div>
+          )}
+        </div>{/* end main content */}
+      </div>{/* end flex container */}
     </div>
   );
 }
-
 

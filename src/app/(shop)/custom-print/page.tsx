@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 
 export default function CustomPrintPage() {
   const [form, setForm] = useState({
@@ -13,6 +13,8 @@ export default function CustomPrintPage() {
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState("");
+  const formRef = useRef<HTMLDivElement>(null);
+  const scrollToForm = () => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -85,7 +87,11 @@ export default function CustomPrintPage() {
               accent: "border-t-amber-300",
             },
           ].map(({ step, title, desc, accent }) => (
-            <div key={step} className={`rounded-xl border border-neutral-200 border-t-4 ${accent} bg-white p-6 shadow-sm`}>
+            <div
+              key={step}
+              onClick={scrollToForm}
+              className={`cursor-pointer rounded-xl border border-neutral-200 border-t-4 ${accent} bg-white p-6 shadow-sm transition-shadow hover:shadow-md`}
+            >
               <p className="mb-3 font-mono text-2xl font-light text-amber-400">{step}</p>
               <h3 className="mb-2 font-semibold text-neutral-900">{title}</h3>
               <p className="text-sm leading-relaxed text-neutral-500">{desc}</p>
@@ -154,7 +160,7 @@ export default function CustomPrintPage() {
         </div>
 
         {/* Contact Form */}
-        <div className="mb-16 rounded-2xl border border-neutral-200 bg-white p-8 shadow-sm">
+        <div ref={formRef} className="mb-16 rounded-2xl border border-neutral-200 bg-white p-8 shadow-sm">
           <h2 className="mb-1 text-xl font-semibold text-neutral-900">Anfrage senden</h2>
           <p className="mb-8 text-sm text-neutral-500">
             Kostenfrei und unverbindlich. Wir antworten in der Regel innerhalb von 24 Stunden.

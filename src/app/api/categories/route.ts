@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { categories, products } from "@/lib/db/schema";
-import { eq, sql, asc } from "drizzle-orm";
+import { eq, and, asc, sql } from "drizzle-orm";
 
 export async function GET() {
   try {
@@ -11,14 +11,23 @@ export async function GET() {
         name: categories.name,
         slug: categories.slug,
         description: categories.description,
+        parentId: categories.parentId,
         sortOrder: categories.sortOrder,
-        productCount: sql<number>`(
-          SELECT count(*) FROM ${products}
-          WHERE ${products.categoryId} = ${categories.id}
-          AND ${products.active} = true
-        )`,
+        productCount: sql<number>`cast(count(${products.id}) as integer)`,
       })
       .from(categories)
+      .leftJoin(
+        products,
+        and(eq(products.categoryId, categories.id), eq(products.active, true))
+      )
+      .groupBy(
+        categories.id,
+        categories.name,
+        categories.slug,
+        categories.description,
+        categories.parentId,
+        categories.sortOrder,
+      )
       .orderBy(asc(categories.sortOrder));
 
     return NextResponse.json({ categories: cats });

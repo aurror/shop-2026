@@ -202,47 +202,73 @@ export default function CategoriesPage() {
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
           {/* Categories list */}
-          <div className="space-y-3">
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500">Kategorien</h2>
+          <div className="space-y-1">
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-neutral-500">Kategorien</h2>
             {loading ? (
               <p className="text-sm text-neutral-400">Lade…</p>
             ) : categories.length === 0 ? (
               <div className="rounded-xl border-2 border-dashed border-neutral-200 p-8 text-center text-sm text-neutral-400">
                 Noch keine Kategorien
               </div>
-            ) : (
-              categories.map(cat => (
-                <div
-                  key={cat.id}
-                  onDragOver={e => onDragOver(e, cat.id)}
-                  onDrop={e => onDrop(e, cat.id)}
-                  className={`rounded-xl border p-4 transition-all cursor-pointer ${
-                    selectedCat === cat.id ? "border-black bg-black text-white" :
-                    dragOverCat === cat.id ? "border-blue-400 bg-blue-50" :
-                    "border-neutral-200 bg-white hover:border-neutral-300"
-                  }`}
-                  onClick={() => setSelectedCat(selectedCat === cat.id ? null : cat.id)}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className={`text-sm font-medium ${selectedCat === cat.id ? "text-white" : "text-neutral-900"}`}>{cat.name}</p>
-                      <p className={`text-xs ${selectedCat === cat.id ? "text-white/60" : "text-neutral-400"}`}>{cat.productCount} Produkte · /{cat.slug}</p>
+            ) : (() => {
+              // Build tree: parents first, then children under their parent
+              const roots = categories.filter(c => !c.parentId);
+              const childrenOf = (parentId: string) => categories.filter(c => c.parentId === parentId);
+
+              const renderCat = (cat: Category, depth = 0) => {
+                const isSelected = selectedCat === cat.id;
+                const children = childrenOf(cat.id);
+                return (
+                  <div key={cat.id}>
+                    <div
+                      style={{ marginLeft: depth * 20 }}
+                      onDragOver={e => onDragOver(e, cat.id)}
+                      onDrop={e => onDrop(e, cat.id)}
+                      className={`flex items-center gap-2 rounded-lg border px-3 py-2.5 mb-1 transition-all cursor-pointer ${
+                        isSelected
+                          ? "border-black bg-black text-white"
+                          : dragOverCat === cat.id
+                          ? "border-blue-400 bg-blue-50"
+                          : "border-neutral-200 bg-white hover:border-neutral-300 hover:bg-neutral-50"
+                      }`}
+                      onClick={() => setSelectedCat(isSelected ? null : cat.id)}
+                    >
+                      {/* Tree connector */}
+                      {depth > 0 && (
+                        <svg className={`h-3 w-3 shrink-0 ${isSelected ? "text-white/40" : "text-neutral-300"}`} viewBox="0 0 12 12" fill="none">
+                          <path d="M2 0 v6 h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                        </svg>
+                      )}
+                      {children.length > 0 && depth === 0 && (
+                        <svg className={`h-3.5 w-3.5 shrink-0 ${isSelected ? "text-white/60" : "text-neutral-400"}`} fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z" />
+                        </svg>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <p className={`text-sm font-medium truncate ${isSelected ? "text-white" : "text-neutral-900"}`}>{cat.name}</p>
+                        <p className={`text-xs truncate ${isSelected ? "text-white/60" : "text-neutral-400"}`}>
+                          {cat.productCount} Produkt{cat.productCount !== 1 ? "e" : ""} · /{cat.slug}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 gap-1" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => openEdit(cat)} className={`rounded p-1 ${isSelected ? "hover:bg-white/20 text-white" : "hover:bg-neutral-100 text-neutral-500"}`} title="Bearbeiten">
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
+                        </button>
+                        <button onClick={() => deleteCategory(cat.id)} className={`rounded p-1 ${isSelected ? "hover:bg-white/20 text-red-300" : "hover:bg-neutral-100 text-red-400"}`} title="Löschen">
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
+                        </button>
+                      </div>
+                      {dragOverCat === cat.id && (
+                        <span className="text-[10px] text-blue-500 font-medium">ablegen</span>
+                      )}
                     </div>
-                    <div className="flex gap-1" onClick={e => e.stopPropagation()}>
-                      <button onClick={() => openEdit(cat)} className={`rounded p-1 ${selectedCat === cat.id ? "hover:bg-white/20 text-white" : "hover:bg-neutral-100 text-neutral-500"}`}>
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
-                      </button>
-                      <button onClick={() => deleteCategory(cat.id)} className={`rounded p-1 ${selectedCat === cat.id ? "hover:bg-white/20 text-red-300" : "hover:bg-neutral-100 text-red-400"}`}>
-                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" /></svg>
-                      </button>
-                    </div>
+                    {children.map(child => renderCat(child, depth + 1))}
                   </div>
-                  {dragOverCat === cat.id && (
-                    <p className="mt-2 text-center text-xs text-blue-500 font-medium">Hier ablegen</p>
-                  )}
-                </div>
-              ))
-            )}
+                );
+              };
+
+              return roots.map(cat => renderCat(cat, 0));
+            })()}
 
             {/* Unassigned drop zone */}
             <div

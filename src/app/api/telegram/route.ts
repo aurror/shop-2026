@@ -310,13 +310,15 @@ export async function POST(request: NextRequest) {
     const chatId = String(message.chat.id);
     const text = (message.text || "").trim();
     const isGroup = message.chat.type === "group" || message.chat.type === "supergroup";
-
-    // Update user info
     const fromUser = message.from;
+    const senderChatId = fromUser ? String(fromUser.id) : null;
+
+    // --- Registration / update ---
+    // For group chats: register/update using the GROUP chatId
+    // For private chats: register/update using the personal chatId
     if (fromUser) {
       const existing = await db.select().from(telegramUsers).where(eq(telegramUsers.chatId, chatId));
       if (existing.length > 0) {
-        // Update name/username
         await db.update(telegramUsers).set({
           username: fromUser.username || existing[0].username,
           firstName: fromUser.first_name || existing[0].firstName,
@@ -327,18 +329,46 @@ export async function POST(request: NextRequest) {
 
     if (!text) return NextResponse.json({ ok: true });
 
+    // --- Authorization check ---
+    // A chat is authorized if:
+    //   1. The chatId itself is in telegramUsers with acknowledged = true, OR
+    //   2. (Group chats only) the individual sender's personal chatId is acknowledged
+    async function isAuthorized(): Promise<boolean> {
+      const [record] = await db.select().from(telegramUsers).where(eq(telegramUsers.chatId, chatId));
+      if (record?.acknowledged) return true;
+      if (isGroup && senderChatId) {
+        const [senderRecord] = await db.select().from(telegramUsers).where(eq(telegramUsers.chatId, senderChatId));
+        if (senderRecord?.acknowledged) {
+          // Auto-acknowledge the group chat since a trusted member is in it
+          if (!record) {
+            await db.insert(telegramUsers).values({
+              chatId,
+              username: message.chat.username || "",
+              firstName: message.chat.title || message.chat.first_name || "Gruppe",
+              isGroup: true,
+              acknowledged: true,
+              notifyOrders: senderRecord.notifyOrders,
+              notifyRequests: senderRecord.notifyRequests,
+            });
+          } else {
+            await db.update(telegramUsers)
+              .set({ acknowledged: true })
+              .where(eq(telegramUsers.chatId, chatId));
+          }
+          return true;
+        }
+      }
+      return false;
+    }
+
     if (text.startsWith("/")) {
       await handleCommand(chatId, text, token);
     } else {
-      // In group chats, only respond if the bot is mentioned or if user is acknowledged
-      const [user] = await db.select().from(telegramUsers).where(eq(telegramUsers.chatId, chatId));
-      if (!user || !user.acknowledged) {
-        if (text === "/start") {
-          await handleCommand(chatId, "/start", token);
-        }
+      const authorized = await isAuthorized();
+      if (!authorized) {
+        // Silently ignore unrecognized group/private chats
         return NextResponse.json({ ok: true });
       }
-      // Natural language question
       await handleNaturalLanguage(chatId, text, token);
     }
 
