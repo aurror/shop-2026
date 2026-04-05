@@ -106,3 +106,159 @@ a, button, input, select, textarea {
   font-weight: 500;
   line-height: 1.25rem;
 }
+
+/* ===================================================================
+   Admin Accessibility Mode  (.admin-a11y on root div)
+   =================================================================== */
+
+/* Override Tailwind v4 color variables for higher contrast */
+.admin-a11y {
+  --color-neutral-50:  #ffffff;
+  --color-neutral-100: #f0f0f0;
+  --color-neutral-200: #cccccc;
+  --color-neutral-300: #aaaaaa;
+  --color-neutral-400: #666666;
+  --color-neutral-500: #444444;
+  --color-neutral-600: #222222;
+  --color-neutral-700: #111111;
+  --color-neutral-800: #050505;
+  --color-neutral-900: #000000;
+  --color-neutral-950: #000000;
+  font-size: 1.0625rem;
+  line-height: 1.75;
+}
+
+/* Larger base text */
+.admin-a11y *,
+.admin-a11y *::before,
+.admin-a11y *::after {
+  letter-spacing: 0.01em;
+}
+
+/* Strong focus rings */
+.admin-a11y *:focus-visible {
+  outline: 3px solid #2563eb !important;
+  outline-offset: 2px !important;
+  border-radius: 4px;
+}
+
+/* Labels bold and readable */
+.admin-a11y label,
+.admin-a11y th {
+  font-weight: 700 !important;
+  color: #000 !important;
+}
+
+/* Table cells easier to read */
+.admin-a11y td {
+  font-size: 0.9375rem !important;
+  color: #111 !important;
+}
+
+/* Colorful heading highlights */
+.admin-a11y h1 {
+  background: linear-gradient(90deg, #fef08a 0%, #fde68a 100%);
+  color: #000 !important;
+  padding: 0.25rem 0.75rem !important;
+  border-radius: 0.375rem !important;
+  border-left: 5px solid #d97706 !important;
+  display: inline-block !important;
+  font-weight: 800 !important;
+}
+
+.admin-a11y h2 {
+  border-left: 4px solid #2563eb !important;
+  padding-left: 0.625rem !important;
+  color: #1e3a8a !important;
+  font-weight: 700 !important;
+  font-size: 1.0625em !important;
+  background: #eff6ff;
+  border-radius: 0 0.25rem 0.25rem 0 !important;
+  padding-top: 0.15rem !important;
+  padding-bottom: 0.15rem !important;
+  padding-right: 0.5rem !important;
+}
+
+.admin-a11y h3 {
+  border-left: 3px solid #0d9488 !important;
+  padding-left: 0.5rem !important;
+  color: #134e4a !important;
+  font-weight: 600 !important;
+  background: #f0fdfa;
+  border-radius: 0 0.25rem 0.25rem 0 !important;
+  padding-top: 0.1rem !important;
+  padding-bottom: 0.1rem !important;
+}
+
+/* Sidebar section labels */
+.admin-a11y p[class*="text-[10px]"],
+.admin-a11y span[class*="text-[10px]"],
+.admin-a11y p[class*="uppercase"],
+.admin-a11y span[class*="uppercase"] {
+  color: #000 !important;
+  font-weight: 700 !important;
+}
+
+/* Buttons — more contrast */
+.admin-a11y button[class*="bg-neutral-900"],
+.admin-a11y a[class*="bg-neutral-900"] {
+  background-color: #000 !important;
+  color: #fff !important;
+  font-weight: 700 !important;
+  border: 2px solid #000 !important;
+}
+
+.admin-a11y button[class*="bg-neutral-100"],
+.admin-a11y button[class*="hover:bg-neutral-100"] {
+  border: 1px solid #888 !important;
+}
+
+/* Input borders more visible */
+.admin-a11y input,
+.admin-a11y textarea,
+.admin-a11y select {
+  border-color: #444 !important;
+  border-width: 2px !important;
+  font-size: 1rem !important;
+  color: #000 !important;
+  background: #fff !important;
+}
+
+/* Card/panel borders */
+.admin-a11y [class*="border-neutral-200"] {
+  border-color: #888 !important;
+}
+
+/* Sidebar active item */
+.admin-a11y [class*="bg-neutral-900"][class*="text-white"] {
+  background-color: #000 !important;
+  outline: 2px solid #2563eb !important;
+}
+
+/* Badges — ensure readable */
+.admin-a11y .badge,
+.admin-a11y [class*="rounded-full"][class*="text-xs"] {
+  font-weight: 700 !important;
+  font-size: 0.75rem !important;
+}
+
+/* Stat/number highlights in dashboard */
+.admin-a11y [class*="text-2xl"],
+.admin-a11y [class*="text-3xl"] {
+  background: linear-gradient(135deg, #dbeafe 0%, #e0e7ff 100%);
+  padding: 0.15rem 0.4rem !important;
+  border-radius: 0.25rem !important;
+  color: #1e3a8a !important;
+  font-weight: 800 !important;
+}
+
+/* Links */
+.admin-a11y a:not([class*="bg-"]) {
+  color: #1d4ed8 !important;
+  text-decoration: underline !important;
+}
+
+/* Dividers more visible */
+.admin-a11y [class*="divide-neutral-"] > * + * {
+  border-top-color: #888 !important;
+}

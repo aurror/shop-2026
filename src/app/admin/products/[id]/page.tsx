@@ -54,6 +54,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [showRelationModal, setShowRelationModal] = useState(false);
   const [relationSearch, setRelationSearch] = useState("");
   const [relationResults, setRelationResults] = useState<any[]>([]);
+  const [catalogProducts, setCatalogProducts] = useState<any[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
 
   // AI suggestions
   const [suggestions, setSuggestions] = useState<any[]>([]);
@@ -328,6 +330,19 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       }
     } catch { /* ignore */ }
   };
+
+  const loadCatalog = useCallback(async () => {
+    if (catalogProducts.length > 0) return; // already loaded
+    setCatalogLoading(true);
+    try {
+      const res = await fetch(`/api/admin/products?limit=200`);
+      if (res.ok) {
+        const data = await res.json();
+        setCatalogProducts((data.products || []).filter((p: any) => p.id !== id));
+      }
+    } catch { /* ignore */ }
+    finally { setCatalogLoading(false); }
+  }, [id, catalogProducts.length]);
 
   const handleAddRelation = async (relatedProductId: string) => {
     try {
@@ -645,7 +660,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           <div className="rounded-xl border border-neutral-200 bg-white shadow-sm">
             <div className="flex items-center justify-between border-b border-neutral-200 px-6 py-4">
               <h2 className="text-sm font-semibold text-neutral-900">{t("relatedProducts")}</h2>
-              <Button variant="secondary" size="sm" onClick={() => setShowRelationModal(true)}>
+              <Button variant="secondary" size="sm" onClick={() => { setShowRelationModal(true); loadCatalog(); }}>
                 {t("add")}
               </Button>
             </div>
@@ -828,35 +843,81 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       </Modal>
 
       {/* Add Relation Modal */}
-      <Modal isOpen={showRelationModal} onClose={() => setShowRelationModal(false)} title="Verwandtes Produkt hinzufügen">
+      <Modal isOpen={showRelationModal} onClose={() => { setShowRelationModal(false); setRelationSearch(""); }} title="Verwandtes Produkt hinzufügen">
         <div className="space-y-4">
+          {/* Search filter */}
           <Input
             label={t("search")}
             value={relationSearch}
-            onChange={(e) => {
-              setRelationSearch(e.target.value);
-              searchProducts(e.target.value);
-            }}
-            placeholder="Produkt suchen..."
+            onChange={(e) => setRelationSearch(e.target.value)}
+            placeholder="Nach Produktname filtern..."
           />
-          {relationResults.length > 0 && (
-            <ul className="max-h-60 overflow-y-auto divide-y divide-neutral-100 rounded-lg border border-neutral-200">
-              {relationResults.map((p) => (
-                <li key={p.id}>
-                  <button
-                    type="button"
-                    onClick={() => handleAddRelation(p.id)}
-                    className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-neutral-50"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-neutral-900">{p.name}</p>
-                      <p className="text-xs text-neutral-500">{formatCurrency(p.basePrice)}</p>
-                    </div>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
+
+          {catalogLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <svg className="h-6 w-6 animate-spin text-neutral-400" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+              </svg>
+            </div>
+          ) : (() => {
+            const relatedIds = new Set(relations.map((r) => r.relatedProductId));
+            const filtered = catalogProducts.filter((p) =>
+              !relationSearch || p.name.toLowerCase().includes(relationSearch.toLowerCase())
+            );
+            return filtered.length === 0 ? (
+              <p className="py-6 text-center text-sm text-neutral-400">Keine Produkte gefunden</p>
+            ) : (
+              <div className="max-h-[440px] overflow-y-auto">
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                  {filtered.map((p) => {
+                    const isAdded = relatedIds.has(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          if (isAdded) {
+                            const rel = relations.find((r) => r.relatedProductId === p.id);
+                            if (rel) handleRemoveRelation(rel.id);
+                          } else {
+                            handleAddRelation(p.id);
+                          }
+                        }}
+                        className={`group relative flex flex-col items-center gap-1.5 rounded-lg border-2 p-3 text-center transition-all ${
+                          isAdded
+                            ? "border-blue-500 bg-blue-50"
+                            : "border-neutral-200 hover:border-neutral-400 hover:bg-neutral-50"
+                        }`}
+                      >
+                        {/* Image or placeholder */}
+                        <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-md bg-neutral-100">
+                          {p.images?.[0] ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img src={p.images[0]} alt={p.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <svg className="h-8 w-8 text-neutral-300" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                            </svg>
+                          )}
+                        </div>
+                        <p className="line-clamp-2 text-xs font-medium leading-tight text-neutral-900">{p.name}</p>
+                        <p className="text-xs text-neutral-500">{formatCurrency(p.basePrice)}</p>
+                        {isAdded && (
+                          <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-blue-500 text-white">
+                            <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                            </svg>
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </Modal>
     </div>
