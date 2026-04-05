@@ -104,6 +104,10 @@ export function AdminHeader({ unreadCount, userName, onMenuToggle, onLogout, a11
           </svg>
           <input
             type="search"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck={false}
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={() => { if (hasResults) setShowResults(true); }}
