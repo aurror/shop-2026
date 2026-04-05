@@ -56,5 +56,8 @@
     "eslint": "^9",
     "eslint-config-next": "16.2.2",
     "typescript": "^5"
+  },
+  "overrides": {
+    "semver": "7.7.3"
   }
 }
