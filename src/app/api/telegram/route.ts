@@ -362,11 +362,20 @@ export async function POST(request: NextRequest) {
     }
 
     if (text.startsWith("/")) {
+      const cmd = text.split("@")[0].split(" ")[0];
+      if (cmd !== "/start") {
+        // For non-/start commands, run isAuthorized() first so group chats
+        // get auto-acknowledged via the sender's personal chatId before
+        // handleCommand looks up the group chatId.
+        const authorized = await isAuthorized();
+        if (!authorized) {
+          return NextResponse.json({ ok: true });
+        }
+      }
       await handleCommand(chatId, text, token);
     } else {
       const authorized = await isAuthorized();
       if (!authorized) {
-        // Silently ignore unrecognized group/private chats
         return NextResponse.json({ ok: true });
       }
       await handleNaturalLanguage(chatId, text, token);

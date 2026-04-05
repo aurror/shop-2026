@@ -43,6 +43,7 @@ const navGroups = [
       { key: "analytics" as const, href: "/admin/analytics", icon: "chart" },
       { key: "notifications" as const, href: "/admin/notifications", icon: "bell" },
       { key: "aiSuggestions" as const, href: "/admin/ai-suggestions", icon: "sparkles" },
+      { key: "adminUsers" as const, href: "/admin/users", icon: "user-cog" },
       { key: "roles" as const, href: "/admin/roles", icon: "shield" },
       { key: "settings" as const, href: "/admin/settings", icon: "settings" },
       { key: "backups" as const, href: "/admin/backups", icon: "database" },
@@ -149,6 +150,12 @@ function NavIcon({ name }: { name: string }) {
       return (
         <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h2.21a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859m-17.5 0V4.875c0-.621.504-1.125 1.125-1.125h15.25c.621 0 1.125.504 1.125 1.125v8.625m-17.5 0v4.125c0 .621.504 1.125 1.125 1.125h15.25c.621 0 1.125-.504 1.125-1.125V13.5" />
+        </svg>
+      );
+    case "user-cog":
+      return (
+        <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0 0 12 15.75a7.488 7.488 0 0 0-5.982 2.975m11.963 0a9 9 0 1 0-11.963 0m11.963 0A8.966 8.966 0 0 1 12 21a8.966 8.966 0 0 1-5.982-2.275M15 9.75a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
         </svg>
       );
     default:
