@@ -194,8 +194,8 @@ export function AdminSidebar({ unreadCount, pendingRequestsCount, isOpen, onClos
       >
         {/* Logo */}
         <div className="flex h-16 items-center justify-between border-b border-neutral-200 px-6">
-          <Link href="/admin" className="text-lg font-semibold tracking-tight text-neutral-900">
-            3DPrintIt
+          <Link href="/admin" className="flex items-center">
+            <img src="/logoPrintIt.svg" alt="3DPrintIt" className="h-7 w-auto" />
           </Link>
           <button
             type="button"

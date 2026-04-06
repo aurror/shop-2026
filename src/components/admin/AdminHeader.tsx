@@ -93,7 +93,6 @@ export function AdminHeader({ unreadCount, userName, onMenuToggle, onLogout, a11
             <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
           </svg>
         </button>
-        <img src="/logoPrintIt.svg" alt="3DPrintIt" className="h-7 w-auto" />
         <span className="hidden text-xs font-medium text-neutral-400 lg:block">Admin</span>
       </div>
 
