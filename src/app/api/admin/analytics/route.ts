@@ -60,11 +60,11 @@ export async function GET(request: NextRequest) {
       .orderBy(desc(count()))
       .limit(20);
 
-    // Unique visitor trends (by sessionId)
+    // Unique visitor trends (by ipHash/userAgent since sessionId is not always set)
     const visitorTrends = await db
       .select({
         date: sql<string>`DATE(${pageViews.createdAt})::text`,
-        uniqueVisitors: sql<number>`COUNT(DISTINCT ${pageViews.sessionId})::int`,
+        uniqueVisitors: sql<number>`COUNT(DISTINCT COALESCE(${pageViews.sessionId}, ${pageViews.ipHash}, ${pageViews.userAgent}))::int`,
         totalViews: count(),
       })
       .from(pageViews)
@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
     const [totalStats] = await db
       .select({
         totalViews: count(),
-        uniqueVisitors: sql<number>`COUNT(DISTINCT ${pageViews.sessionId})::int`,
+        uniqueVisitors: sql<number>`COUNT(DISTINCT COALESCE(${pageViews.sessionId}, ${pageViews.ipHash}, ${pageViews.userAgent}))::int`,
         uniquePaths: sql<number>`COUNT(DISTINCT ${pageViews.path})::int`,
       })
       .from(pageViews)

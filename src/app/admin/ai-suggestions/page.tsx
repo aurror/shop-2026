@@ -179,8 +179,8 @@ export default function AdminAiSuggestionsPage() {
         <h2 className="mb-4 text-base font-semibold text-neutral-900">
           {locale === "en" ? "Select Product" : "Produkt auswählen"}
         </h2>
-        <div className="flex items-end gap-4">
-          <div className="min-w-[300px] flex-1">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end">
+          <div className="flex-1">
             <Input
               label={t("search")}
               placeholder={locale === "en" ? "Filter products..." : "Produkte filtern..."}
@@ -188,7 +188,7 @@ export default function AdminAiSuggestionsPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          <div className="min-w-[300px] flex-1">
+          <div className="flex-1">
             <Select
               label={t("products")}
               options={productOptions}
@@ -269,7 +269,7 @@ export default function AdminAiSuggestionsPage() {
           <div className="divide-y divide-neutral-100">
             {suggestions.map((suggestion) => (
               <div key={suggestion.id} className="px-6 py-4">
-                <div className="flex items-start gap-4">
+                <div className="flex items-start gap-4 flex-wrap sm:flex-nowrap">
                   {/* Suggested product image */}
                   <div className="h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-neutral-200 bg-neutral-100">
                     {suggestion.suggestedProduct?.images?.[0] ? (
@@ -317,7 +317,7 @@ export default function AdminAiSuggestionsPage() {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex shrink-0 gap-2">
+                  <div className="flex w-full shrink-0 gap-2 sm:w-auto">
                     <Button
                       variant="primary"
                       size="sm"
