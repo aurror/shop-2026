@@ -48,6 +48,8 @@ else
 fi
 
 echo "[4/5] Building..." | tee -a "$LOG_FILE"
+# Clear stale build cache (especially important when switching bundlers)
+rm -rf .next
 npm run build 2>&1 | tee -a "$LOG_FILE"
 
 echo "[5/5] Copying static files..." | tee -a "$LOG_FILE"
