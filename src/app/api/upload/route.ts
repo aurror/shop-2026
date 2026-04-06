@@ -8,7 +8,7 @@ import { existsSync } from "fs";
 import sharp from "sharp";
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB (pre-processing)
-const UPLOAD_DIR = join(process.cwd(), "uploads", "images");
+const UPLOAD_DIR = join(process.cwd(), "public", "uploads");
 const MAX_WIDTH = 1200;
 const THUMB_WIDTH = 400;
 
@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     if (ext === "svg") {
       const filename = `${id}.svg`;
       await writeFile(join(UPLOAD_DIR, filename), buffer);
-      const url = `/api/files?name=${filename}`;
+      const url = `/uploads/${filename}`;
       return NextResponse.json(
         { success: true, url, thumbUrl: url, filename },
         { status: 201 }
@@ -107,8 +107,8 @@ export async function POST(request: NextRequest) {
       .webp({ quality: 72 })
       .toFile(join(UPLOAD_DIR, thumbFilename));
 
-    const url = `/api/files?name=${mainFilename}`;
-    const thumbUrl = `/api/files?name=${thumbFilename}`;
+    const url = `/uploads/${mainFilename}`;
+    const thumbUrl = `/uploads/${thumbFilename}`;
 
     return NextResponse.json(
       { success: true, url, thumbUrl, filename: mainFilename },

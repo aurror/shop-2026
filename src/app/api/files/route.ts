@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { readFile } from "fs/promises";
 import path from "path";
 
-const UPLOADS_DIR = path.join(process.cwd(), "uploads", "images");
+const UPLOADS_DIR = path.join(process.cwd(), "public", "uploads");
 
 export async function GET(request: NextRequest) {
   const name = request.nextUrl.searchParams.get("name");
