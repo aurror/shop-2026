@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { LocaleProvider } from "@/components/admin/LocaleContext";
 import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminHeader } from "@/components/admin/AdminHeader";
+import { MobileFooterControls } from "@/components/admin/MobileFooterControls";
 import { ToastProvider } from "@/components/shared/Toast";
 
 interface AdminShellProps {
@@ -94,6 +95,7 @@ export function AdminShell({ children, userName, userRole }: AdminShellProps) {
             />
             <main className="flex-1 overflow-y-auto p-4 lg:p-6">
               {children}
+              <MobileFooterControls a11yMode={a11yMode} onToggleA11y={toggleA11y} />
             </main>
           </div>
         </div>
