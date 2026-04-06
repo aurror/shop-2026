@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ relations });
 }
 
-// POST add relation
+// POST add relation (always creates a reverse link too)
 export async function POST(req: NextRequest) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -59,19 +59,44 @@ export async function POST(req: NextRequest) {
       .onConflictDoNothing()
       .returning();
 
+    // Create reverse link so both products show each other
+    await db
+      .insert(productRelations)
+      .values({ productId: relatedProductId, relatedProductId: productId, relationType })
+      .onConflictDoNothing();
+
     return NextResponse.json({ relation: rel }, { status: 201 });
   } catch {
     return NextResponse.json({ error: "Already exists" }, { status: 409 });
   }
 }
 
-// DELETE remove relation
+// DELETE remove relation (also removes the reverse link)
 export async function DELETE(req: NextRequest) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await req.json();
+
+  // Fetch the relation first so we know which reverse link to remove
+  const [existing] = await db
+    .select()
+    .from(productRelations)
+    .where(eq(productRelations.id, id))
+    .limit(1);
+
   await db.delete(productRelations).where(eq(productRelations.id, id));
+
+  // Remove the reverse link if it exists
+  if (existing) {
+    await db.delete(productRelations).where(
+      and(
+        eq(productRelations.productId, existing.relatedProductId),
+        eq(productRelations.relatedProductId, existing.productId),
+        eq(productRelations.relationType, existing.relationType)
+      )
+    );
+  }
 
   return NextResponse.json({ success: true });
 }

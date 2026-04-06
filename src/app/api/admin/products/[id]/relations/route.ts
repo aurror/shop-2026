@@ -135,6 +135,17 @@ export async function POST(
       })
       .returning();
 
+    // Create reverse link so both products show each other
+    await db
+      .insert(productRelations)
+      .values({
+        productId: relatedProductId,
+        relatedProductId: id,
+        relationType: type,
+        sortOrder: body.sortOrder ?? 0,
+      })
+      .onConflictDoNothing();
+
     return NextResponse.json({ relation }, { status: 201 });
   } catch (error) {
     console.error("[Admin Relations POST]", error);
@@ -177,6 +188,15 @@ export async function DELETE(
     }
 
     await db.delete(productRelations).where(eq(productRelations.id, relationId));
+
+    // Remove the reverse link if it exists
+    await db.delete(productRelations).where(
+      and(
+        eq(productRelations.productId, existing.relatedProductId),
+        eq(productRelations.relatedProductId, existing.productId),
+        eq(productRelations.relationType, existing.relationType)
+      )
+    );
 
     return NextResponse.json({ message: "Relation removed" });
   } catch (error) {

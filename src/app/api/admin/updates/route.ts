@@ -47,6 +47,16 @@ export async function POST() {
   try {
     const deployScript = path.join(APP_DIR, "deploy.sh");
 
+    // Strip internal Next.js env vars so `next build` inside the deploy script
+    // loads a fresh config from next.config.ts instead of reusing the running
+    // server's __NEXT_PRIVATE_STANDALONE_CONFIG (which is a runtime-only config
+    // and causes "generate is not a function" build failures).
+    for (const key of Object.keys(process.env)) {
+      if (key.startsWith("__NEXT_PRIVATE")) {
+        delete process.env[key];
+      }
+    }
+
     // Spawn fully detached — survives even if Next.js restarts during build.
     // Use bash -l (login shell) so ~/.bash_profile is sourced, giving the full
     // user environment (nvm, PATH, etc.) — same as running from a terminal.
