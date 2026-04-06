@@ -11,7 +11,7 @@ export function MobileFooterControls({ a11yMode, onToggleA11y }: MobileFooterCon
   const { locale, setLocale } = useLocale();
 
   return (
-    <div className="mt-8 flex items-center justify-center gap-4 border-t border-neutral-200 py-4 sm:hidden">
+    <div className="mt-8 flex items-center justify-center gap-4 border-t border-neutral-200 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:hidden">
       <div className="flex items-center rounded-lg border border-neutral-200 bg-neutral-50">
         <button
           type="button"
