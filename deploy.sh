@@ -31,7 +31,8 @@ ssh-add "$HOME/.ssh/id_shop_2026" >> "$LOG_FILE" 2>&1
 cd "$APP_DIR"
 
 echo "[2/5] Pulling latest from main..." | tee -a "$LOG_FILE"
-git pull origin main 2>&1 | tee -a "$LOG_FILE"
+git fetch origin main 2>&1 | tee -a "$LOG_FILE"
+git reset --hard origin/main 2>&1 | tee -a "$LOG_FILE"
 
 ssh-agent -k >> /dev/null 2>&1
 
