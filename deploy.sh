@@ -43,7 +43,7 @@ export NVM_DIR="$HOME/.nvm"
 nvm install 24 2>&1 | tee -a "$LOG_FILE"
 nvm use 24 2>&1 | tee -a "$LOG_FILE"
 if [ -f "$APP_DIR/package-lock.json" ]; then
-  npm ci 2>&1 | tee -a "$LOG_FILE"
+  npm ci --include=dev 2>&1 | tee -a "$LOG_FILE"
 else
   npm install 2>&1 | tee -a "$LOG_FILE"
 fi
