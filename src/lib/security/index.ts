@@ -91,6 +91,7 @@ export const productSchema = z.object({
   taxRate: z.string().optional(),
   metaTitle: z.string().max(200).optional(),
   metaDescription: z.string().max(500).optional(),
+  tags: z.array(z.string().max(50)).max(20).optional(),
 });
 
 export const variantSchema = z.object({

@@ -143,6 +143,7 @@ export async function PUT(
     if (data.metaTitle !== undefined) updateData.metaTitle = data.metaTitle;
     if (data.metaDescription !== undefined) updateData.metaDescription = data.metaDescription;
     if (body.images !== undefined) updateData.images = body.images;
+    if (body.tags !== undefined) updateData.tags = body.tags;
 
     const [updated] = await db
       .update(products)

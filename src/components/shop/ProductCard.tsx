@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import { useState } from "react";
+import { useCart, getGuestCart, saveGuestCart } from "@/components/shop/CartContext";
 
 interface ProductCardProps {
   product: {
@@ -11,6 +13,7 @@ interface ProductCardProps {
     basePrice: string;
     compareAtPrice?: string | null;
     images: string[];
+    tags?: string[] | null;
     featured?: boolean;
     category?: {
       name: string;
@@ -18,6 +21,7 @@ interface ProductCardProps {
     } | null;
     variants?: {
       id: string;
+      name?: string;
       price: string | null;
       stock: number;
     }[];
@@ -34,6 +38,10 @@ function formatPrice(price: number): string {
 }
 
 export function ProductCard({ product }: ProductCardProps) {
+  const { incrementCartCount } = useCart();
+  const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState(false);
+
   const variants = product.variants || [];
   const totalStock =
     product.totalStock ?? variants.reduce((sum, v) => sum + v.stock, 0);
@@ -54,12 +62,57 @@ export function ProductCard({ product }: ProductCardProps) {
     : null;
 
   const imageUrl = product.images?.[0] || null;
+  const tags = product.tags?.filter(Boolean) ?? [];
+
+  // Can add directly if exactly 1 variant with stock
+  const singleVariant = variants.length === 1 ? variants[0] : null;
+  const canDirectAdd = singleVariant != null && singleVariant.stock > 0 && !isOutOfStock;
+
+  async function handleAddToCart(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!singleVariant) return;
+    setAdding(true);
+    try {
+      const res = await fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId: product.id, variantId: singleVariant.id, quantity: 1 }),
+      });
+      if (res.status === 401) {
+        // Guest: save to localStorage
+        const cart = getGuestCart();
+        const existing = cart.find(
+          (i) => i.productId === product.id && i.variantId === singleVariant.id
+        );
+        if (existing) {
+          existing.quantity += 1;
+        } else {
+          cart.push({
+            productId: product.id,
+            variantId: singleVariant.id,
+            quantity: 1,
+            productName: product.name,
+            variantName: singleVariant.name,
+            productSlug: product.slug,
+            productImage: imageUrl ?? undefined,
+            unitPrice: singleVariant.price ? parseFloat(singleVariant.price) : basePrice,
+          });
+        }
+        saveGuestCart(cart);
+      }
+      incrementCartCount(1);
+      setAdded(true);
+      setTimeout(() => setAdded(false), 2000);
+    } catch {
+      // ignore
+    } finally {
+      setAdding(false);
+    }
+  }
 
   return (
-    <Link
-      href={`/products/${product.slug}`}
-      className="group block"
-    >
+    <Link href={`/products/${product.slug}`} className="group block">
       <div className="overflow-hidden rounded-xl bg-neutral-50 transition-all duration-300 group-hover:shadow-md">
         {/* Image */}
         <div className="relative aspect-square overflow-hidden">
@@ -123,6 +176,20 @@ export function ProductCard({ product }: ProductCardProps) {
             {product.name}
           </h3>
 
+          {/* Tags */}
+          {tags.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium text-neutral-500"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          )}
+
           <div className="mt-2 flex items-baseline gap-2">
             {hasVariantPrices ? (
               <span className="text-sm font-semibold text-black">
@@ -141,9 +208,33 @@ export function ProductCard({ product }: ProductCardProps) {
             )}
           </div>
 
-          <p className="mt-1 text-[11px] text-neutral-400">
-            inkl. MwSt.
-          </p>
+          <p className="mt-1 text-[11px] text-neutral-400">inkl. MwSt.</p>
+
+          {/* Add to cart — mobile: always visible; desktop: on hover */}
+          {!isOutOfStock && (
+            <div className="mt-3">
+              {canDirectAdd ? (
+                <button
+                  onClick={handleAddToCart}
+                  disabled={adding}
+                  className={`
+                    w-full rounded-lg py-2 text-xs font-medium transition-colors
+                    sm:opacity-0 sm:group-hover:opacity-100
+                    ${added
+                      ? "bg-green-600 text-white"
+                      : "bg-black text-white hover:bg-neutral-800 active:bg-neutral-700"
+                    }
+                  `}
+                >
+                  {added ? "✓ Hinzugefügt" : adding ? "…" : "In den Warenkorb"}
+                </button>
+              ) : variants.length !== 1 ? (
+                <span className="block w-full rounded-lg bg-neutral-900 py-2 text-center text-xs font-medium text-white sm:opacity-0 sm:group-hover:opacity-100">
+                  Variante wählen →
+                </span>
+              ) : null}
+            </div>
+          )}
         </div>
       </div>
     </Link>

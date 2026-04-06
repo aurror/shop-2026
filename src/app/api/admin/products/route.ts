@@ -151,6 +151,7 @@ export async function POST(request: NextRequest) {
         metaTitle: data.metaTitle || null,
         metaDescription: data.metaDescription || null,
         images: body.images || [],
+        tags: body.tags || [],
       })
       .returning();
 

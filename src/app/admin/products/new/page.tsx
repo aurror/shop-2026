@@ -31,6 +31,8 @@ export default function NewProductPage() {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
 
   useEffect(() => {
     fetch("/api/categories")
@@ -106,6 +108,7 @@ export default function NewProductPage() {
         body: JSON.stringify({
           ...form,
           images,
+          tags,
         }),
       });
 
@@ -307,6 +310,55 @@ export default function NewProductPage() {
                 <span className="text-sm font-medium text-neutral-700">{t("featured")}</span>
               </label>
             </div>
+          </div>
+
+          {/* Tags */}
+          <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-3 text-sm font-semibold text-neutral-900">Tags</h2>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
+                    e.preventDefault();
+                    const t = tagInput.trim().replace(/,$/, "");
+                    if (t && !tags.includes(t)) setTags((prev) => [...prev, t]);
+                    setTagInput("");
+                  }
+                }}
+                placeholder='Tag eingeben, Enter zum Hinzufügen'
+                className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const t = tagInput.trim();
+                  if (t && !tags.includes(t)) setTags((prev) => [...prev, t]);
+                  setTagInput("");
+                }}
+                className="rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700"
+              >
+                +
+              </button>
+            </div>
+            {tags.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {tags.map((tag) => (
+                  <span key={tag} className="flex items-center gap-1 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => setTags((prev) => prev.filter((t) => t !== tag))}
+                      className="ml-1 text-neutral-400 hover:text-red-500"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Save */}

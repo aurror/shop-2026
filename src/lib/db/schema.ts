@@ -109,6 +109,7 @@ export const products = schema.table(
     featured: boolean("featured").default(false).notNull(),
     active: boolean("active").default(true).notNull(),
     taxRate: decimal("tax_rate", { precision: 5, scale: 2 }).default("19.00").notNull(),
+    tags: jsonb("tags").$type<string[]>().default([]),
     metaTitle: text("meta_title"),
     metaDescription: text("meta_description"),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),

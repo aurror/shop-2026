@@ -15,6 +15,7 @@ export interface HomepageProduct {
   basePrice: string;
   compareAtPrice?: string | null;
   images?: string[] | null;
+  tags?: string[] | null;
   featured: boolean;
   categoryId?: string | null;
   categoryName?: string | null;
@@ -35,6 +36,7 @@ const BASE_SELECT = {
   basePrice: products.basePrice,
   compareAtPrice: products.compareAtPrice,
   images: products.images,
+  tags: products.tags,
   featured: products.featured,
   categoryId: products.categoryId,
   categoryName: categories.name,

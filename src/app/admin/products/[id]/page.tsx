@@ -61,6 +61,8 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   const [suggestions, setSuggestions] = useState<any[]>([]);
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([]);
+  const [tags, setTags] = useState<string[]>([]);
+  const [tagInput, setTagInput] = useState("");
 
   const [form, setForm] = useState({
     name: "", slug: "", description: "", descriptionHtml: "", basePrice: "", compareAtPrice: "",
@@ -92,6 +94,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
             saleDiscountCode: p.saleDiscountCode || "",
           });
           setImages(p.images || []);
+          setTags(p.tags || []);
           setVariants(p.variants || []);
           setRelations(p.relations || []);
         } else {
@@ -197,7 +200,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
       const res = await fetch(`/api/admin/products/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, images }),
+        body: JSON.stringify({ ...form, images, tags }),
       });
       if (res.ok) {
         addToast("success", t("saved"));
@@ -820,6 +823,55 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
                 <span className="text-sm font-medium text-neutral-700">{t("featured")}</span>
               </label>
             </div>
+          </div>
+
+          {/* Tags */}
+          <div className="rounded-xl border border-neutral-200 bg-white p-6 shadow-sm">
+            <h2 className="mb-3 text-sm font-semibold text-neutral-900">Tags</h2>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if ((e.key === "Enter" || e.key === ",") && tagInput.trim()) {
+                    e.preventDefault();
+                    const tag = tagInput.trim().replace(/,$/, "");
+                    if (tag && !tags.includes(tag)) setTags((prev) => [...prev, tag]);
+                    setTagInput("");
+                  }
+                }}
+                placeholder="Tag eingeben, Enter zum Hinzufügen"
+                className="flex-1 rounded-lg border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const tag = tagInput.trim();
+                  if (tag && !tags.includes(tag)) setTags((prev) => [...prev, tag]);
+                  setTagInput("");
+                }}
+                className="rounded-lg bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700"
+              >
+                +
+              </button>
+            </div>
+            {tags.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {tags.map((tag) => (
+                  <span key={tag} className="flex items-center gap-1 rounded-full bg-neutral-100 px-3 py-1 text-xs font-medium text-neutral-700">
+                    {tag}
+                    <button
+                      type="button"
+                      onClick={() => setTags((prev) => prev.filter((t) => t !== tag))}
+                      className="ml-1 text-neutral-400 hover:text-red-500"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
           </div>
 
           <Button variant="primary" className="w-full" loading={saving} onClick={handleSave}>
