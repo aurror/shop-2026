@@ -79,6 +79,7 @@ export default async function ShopLayout({
         <Header
           userName={session?.user?.name ?? null}
           isLoggedIn={!!session?.user}
+          isAdmin={isAdmin}
         />
         {!shopSettings.orderingEnabled && (
           <div className="bg-amber-50 border-b border-amber-200 px-4 py-3 text-center text-sm text-amber-800">

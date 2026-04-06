@@ -9,9 +9,10 @@ import { useCart } from "@/components/shop/CartContext";
 interface HeaderProps {
   userName: string | null;
   isLoggedIn: boolean;
+  isAdmin?: boolean;
 }
 
-export function Header({ userName, isLoggedIn }: HeaderProps) {
+export function Header({ userName, isLoggedIn, isAdmin }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -181,6 +182,21 @@ export function Header({ userName, isLoggedIn }: HeaderProps) {
 
               {userMenuOpen && (
                 <div className="absolute right-0 mt-1 w-48 rounded-xl border border-neutral-200 bg-white py-1 shadow-lg">
+                  {isAdmin && (
+                    <>
+                      <Link
+                        href="/admin"
+                        className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-50"
+                        onClick={() => setUserMenuOpen(false)}
+                      >
+                        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
+                        </svg>
+                        Zum Dashboard
+                      </Link>
+                      <div className="my-1 border-t border-neutral-100" />
+                    </>
+                  )}
                   <Link
                     href="/account"
                     className="block px-4 py-2 text-sm text-neutral-700 transition-colors hover:bg-neutral-50"
@@ -271,6 +287,17 @@ export function Header({ userName, isLoggedIn }: HeaderProps) {
 
             {isLoggedIn ? (
               <>
+                {isAdmin && (
+                  <Link
+                    href="/admin"
+                    className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-sm font-medium text-indigo-600 transition-colors hover:bg-indigo-50"
+                  >
+                    <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
+                    </svg>
+                    Zum Dashboard
+                  </Link>
+                )}
                 <Link
                   href="/account"
                   className="block rounded-lg px-3 py-2.5 text-sm font-medium text-neutral-600 transition-colors hover:bg-neutral-50 hover:text-black"
