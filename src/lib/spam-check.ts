@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { contactRequests } from "@/lib/db/schema";
 import { eq } from "drizzle-orm";
-import { getAiConfig } from "@/app/api/admin/ai/optimize/route";
+import { getAiConfig } from "@/lib/ai/config";
 import OpenAI from "openai";
 
 export async function checkSpam(

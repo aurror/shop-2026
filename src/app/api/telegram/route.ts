@@ -11,7 +11,7 @@ import {
 } from "@/lib/db/schema";
 import { eq, sql, desc, and, gte } from "drizzle-orm";
 import { sendTelegramMessage } from "@/lib/telegram";
-import { getAiConfig } from "@/app/api/admin/ai/optimize/route";
+import { getAiConfig } from "@/lib/ai/config";
 import { getHistory, pushMessage, resetHistory } from "@/lib/telegram/conversation";
 import OpenAI from "openai";
 

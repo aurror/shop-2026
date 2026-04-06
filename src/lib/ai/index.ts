@@ -1,24 +1,8 @@
 import OpenAI from "openai";
 import { db } from "@/lib/db";
-import { products, productRelationSuggestions, settings } from "@/lib/db/schema";
+import { products, productRelationSuggestions } from "@/lib/db/schema";
 import { eq, ne, and } from "drizzle-orm";
-
-async function getAiConfig() {
-  const rows = await db.select().from(settings);
-  const map: Record<string, string> = {};
-  for (const row of rows) {
-    if (row.value !== null && row.value !== undefined) {
-      map[row.key] = String(row.value);
-    }
-  }
-
-  return {
-    baseURL: map.ai_base_url || process.env.AI_BASE_URL || "https://chat-ai.academiccloud.de/v1",
-    apiKey: map.ai_api_key || process.env.AI_API_KEY || "",
-    model: map.ai_model || process.env.AI_MODEL || "qwen3.5-397b-a17b",
-    relatedInstructions: map.ai_related_instructions || "",
-  };
-}
+import { getAiConfig } from "@/lib/ai/config";
 
 export async function getRelatedProductSuggestions(
   productId: string
