@@ -4,12 +4,63 @@ import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
-import { Button } from "@/components/shared/Button";
-import { Input } from "@/components/shared/Input";
-import { Select } from "@/components/shared/Select";
-import { Badge } from "@/components/shared/Badge";
-import { LoadingSpinner } from "@/components/shared/LoadingSpinner";
-import { EmptyState } from "@/components/shared/EmptyState";
+
+/* ---------- inline UI helpers ---------- */
+function Btn({
+  variant = "primary", size, loading, onClick, children, type = "button", disabled,
+}: {
+  variant?: "primary" | "outline" | "ghost" | "danger";
+  size?: "sm";
+  loading?: boolean;
+  onClick?: () => void;
+  children: React.ReactNode;
+  type?: "button" | "submit";
+  disabled?: boolean;
+}) {
+  const base = "inline-flex items-center justify-center rounded-lg font-medium transition-colors disabled:opacity-50";
+  const sz = size === "sm" ? "px-3 py-1.5 text-sm" : "px-4 py-2 text-sm";
+  const v = {
+    primary: "bg-black text-white hover:bg-neutral-800",
+    outline: "border border-neutral-300 bg-white text-neutral-700 hover:bg-neutral-50",
+    ghost: "text-neutral-600 hover:bg-neutral-100",
+    danger: "bg-red-600 text-white hover:bg-red-700",
+  }[variant];
+  return (
+    <button type={type} onClick={onClick} disabled={loading || disabled} className={`${base} ${sz} ${v}`}>
+      {loading ? <span className="mr-2 h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" /> : null}
+      {children}
+    </button>
+  );
+}
+
+function FieldInput({
+  label, error, ...props
+}: React.InputHTMLAttributes<HTMLInputElement> & { label?: string; error?: string }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {label && <label className="text-sm font-medium text-neutral-700">{label}</label>}
+      <input
+        className={`w-full rounded-lg border px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-200 ${error ? "border-red-400" : "border-neutral-300"}`}
+        {...props}
+      />
+      {error && <p className="text-xs text-red-600">{error}</p>}
+    </div>
+  );
+}
+
+function FieldSelect({
+  label, options, ...props
+}: React.SelectHTMLAttributes<HTMLSelectElement> & { label?: string; options: { value: string; label: string }[] }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      {label && <label className="text-sm font-medium text-neutral-700">{label}</label>}
+      <select className="w-full rounded-lg border border-neutral-300 px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-200" {...props}>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </div>
+  );
+}
+/* --------------------------------------- */
 
 interface Address {
   id: string;
@@ -189,7 +240,7 @@ export default function AddressesPage() {
   if (authStatus === "loading" || loading) {
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-4xl items-center justify-center px-4 py-16">
-        <LoadingSpinner size="lg" />
+        <span className="h-10 w-10 animate-spin rounded-full border-4 border-neutral-200 border-t-neutral-800" />
       </div>
     );
   }
@@ -203,12 +254,12 @@ export default function AddressesPage() {
         </div>
         <div className="flex gap-2">
           <Link href="/account">
-            <Button variant="ghost" size="sm">Zurück</Button>
+            <Btn variant="ghost" size="sm">Zurück</Btn>
           </Link>
           {!showForm && (
-            <Button variant="primary" size="sm" onClick={openNewForm}>
+            <Btn variant="primary" size="sm" onClick={openNewForm}>
               Neue Adresse
-            </Button>
+            </Btn>
           )}
         </div>
       </div>
@@ -221,21 +272,21 @@ export default function AddressesPage() {
           </h2>
 
           <div className="space-y-4">
-            <Input
+            <FieldInput
               label="Bezeichnung (z.B. Zuhause, Büro)"
               value={form.label}
               onChange={(e) => setForm((f) => ({ ...f, label: e.target.value }))}
               placeholder="Standard"
             />
             <div className="grid grid-cols-2 gap-4">
-              <Input
+              <FieldInput
                 label="Vorname"
                 value={form.firstName}
                 onChange={(e) => setForm((f) => ({ ...f, firstName: e.target.value }))}
                 error={formErrors.firstName}
                 required
               />
-              <Input
+              <FieldInput
                 label="Nachname"
                 value={form.lastName}
                 onChange={(e) => setForm((f) => ({ ...f, lastName: e.target.value }))}
@@ -243,14 +294,14 @@ export default function AddressesPage() {
                 required
               />
             </div>
-            <Input
+            <FieldInput
               label="Firma (optional)"
               value={form.company}
               onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
             />
             <div className="grid grid-cols-3 gap-4">
               <div className="col-span-2">
-                <Input
+                <FieldInput
                   label="Straße"
                   value={form.street}
                   onChange={(e) => setForm((f) => ({ ...f, street: e.target.value }))}
@@ -258,7 +309,7 @@ export default function AddressesPage() {
                   required
                 />
               </div>
-              <Input
+              <FieldInput
                 label="Nr."
                 value={form.streetNumber}
                 onChange={(e) => setForm((f) => ({ ...f, streetNumber: e.target.value }))}
@@ -266,13 +317,13 @@ export default function AddressesPage() {
                 required
               />
             </div>
-            <Input
+            <FieldInput
               label="Adresszusatz (optional)"
               value={form.addressExtra}
               onChange={(e) => setForm((f) => ({ ...f, addressExtra: e.target.value }))}
             />
             <div className="grid grid-cols-3 gap-4">
-              <Input
+              <FieldInput
                 label="PLZ"
                 value={form.zip}
                 onChange={(e) => setForm((f) => ({ ...f, zip: e.target.value }))}
@@ -280,7 +331,7 @@ export default function AddressesPage() {
                 required
               />
               <div className="col-span-2">
-                <Input
+                <FieldInput
                   label="Stadt"
                   value={form.city}
                   onChange={(e) => setForm((f) => ({ ...f, city: e.target.value }))}
@@ -289,7 +340,7 @@ export default function AddressesPage() {
                 />
               </div>
             </div>
-            <Select
+            <FieldSelect
               label="Land"
               value={form.country}
               onChange={(e) => setForm((f) => ({ ...f, country: e.target.value }))}
@@ -317,33 +368,27 @@ export default function AddressesPage() {
           )}
 
           <div className="mt-6 flex gap-3">
-            <Button variant="primary" loading={saving} onClick={handleSave}>
+            <Btn variant="primary" loading={saving} onClick={handleSave}>
               {editingId ? "Speichern" : "Hinzufügen"}
-            </Button>
-            <Button variant="outline" onClick={cancelForm}>
+            </Btn>
+            <Btn variant="outline" onClick={cancelForm}>
               Abbrechen
-            </Button>
+            </Btn>
           </div>
         </div>
       )}
 
       {/* Address List */}
       {addresses.length === 0 && !showForm ? (
-        <EmptyState
-          title="Keine Adressen gespeichert"
-          description="Fügen Sie eine Lieferadresse hinzu, um den Bestellvorgang zu beschleunigen."
-          icon={
-            <svg className="h-16 w-16" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
-            </svg>
-          }
-          action={
-            <Button variant="primary" onClick={openNewForm}>
-              Adresse hinzufügen
-            </Button>
-          }
-        />
+        <div className="flex flex-col items-center justify-center rounded-xl border border-neutral-200 py-16 text-center">
+          <svg className="mb-4 h-16 w-16 text-neutral-300" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1 1 15 0Z" />
+          </svg>
+          <p className="mb-1 text-sm font-medium text-neutral-700">Keine Adressen gespeichert</p>
+          <p className="mb-4 text-sm text-neutral-500">Fügen Sie eine Lieferadresse hinzu, um den Bestellvorgang zu beschleunigen.</p>
+          <Btn variant="primary" onClick={openNewForm}>Adresse hinzufügen</Btn>
+        </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {addresses.map((address) => (
@@ -355,7 +400,7 @@ export default function AddressesPage() {
             >
               {address.isDefault && (
                 <div className="mb-2">
-                  <Badge variant="default">Standardadresse</Badge>
+                  <span className="inline-flex items-center rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs font-medium text-neutral-800">Standardadresse</span>
                 </div>
               )}
               {address.label && (
