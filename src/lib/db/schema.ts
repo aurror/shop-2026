@@ -826,3 +826,58 @@ export const homepageRules = schema.table("homepage_rules", {
   active: boolean("active").default(true).notNull(),
   createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
 });
+
+// ─── Advertising / Google Merchant ──────────────────────────────────────────
+
+export const adCampaigns = schema.table("ad_campaigns", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // "shopping" | "search" | "remarketing"
+  status: text("status").default("paused").notNull(), // "active" | "paused"
+  dailyBudget: decimal("daily_budget", { precision: 10, scale: 2 }).default("5.00").notNull(),
+  totalSpent: decimal("total_spent", { precision: 10, scale: 2 }).default("0").notNull(),
+  impressions: integer("impressions").default(0).notNull(),
+  clicks: integer("clicks").default(0).notNull(),
+  conversions: integer("conversions").default(0).notNull(),
+  revenue: decimal("revenue", { precision: 10, scale: 2 }).default("0").notNull(),
+  createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+});
+
+export const productAdConfig = schema.table(
+  "product_ad_config",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    productId: uuid("product_id")
+      .notNull()
+      .references(() => products.id, { onDelete: "cascade" }),
+    advertised: boolean("advertised").default(false).notNull(),
+    campaignId: uuid("campaign_id").references(() => adCampaigns.id, { onDelete: "set null" }),
+    customTitle: text("custom_title"),
+    customDescription: text("custom_description"),
+    googleProductCategory: text("google_product_category"),
+    adKeywords: jsonb("ad_keywords").$type<string[]>().default([]),
+    maxCpc: decimal("max_cpc", { precision: 8, scale: 2 }),
+    priority: text("priority").default("medium").notNull(), // "high" | "medium" | "low"
+    impressions: integer("impressions").default(0).notNull(),
+    clicks: integer("clicks").default(0).notNull(),
+    conversions: integer("conversions").default(0).notNull(),
+    cost: decimal("cost", { precision: 10, scale: 2 }).default("0").notNull(),
+    revenue: decimal("revenue", { precision: 10, scale: 2 }).default("0").notNull(),
+    updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+  },
+  (table) => [
+    uniqueIndex("product_ad_config_product_idx").on(table.productId),
+  ]
+);
+
+export const productAdConfigRelations = relations(productAdConfig, ({ one }) => ({
+  product: one(products, {
+    fields: [productAdConfig.productId],
+    references: [products.id],
+  }),
+  campaign: one(adCampaigns, {
+    fields: [productAdConfig.campaignId],
+    references: [adCampaigns.id],
+  }),
+}));

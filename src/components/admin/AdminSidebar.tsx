@@ -35,6 +35,7 @@ const navGroups = [
       { key: "productLinks" as const, href: "/admin/recommended", icon: "link" },
       { key: "featuredPage" as const, href: "/admin/featured", icon: "star" },
       { key: "discounts" as const, href: "/admin/discounts", icon: "tag" },
+      { key: "advertising" as const, href: "/admin/advertising", icon: "megaphone" },
     ],
   },
   {
@@ -150,6 +151,12 @@ function NavIcon({ name }: { name: string }) {
       return (
         <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 13.5h3.86a2.25 2.25 0 0 1 2.012 1.244l.256.512a2.25 2.25 0 0 0 2.013 1.244h2.21a2.25 2.25 0 0 0 2.013-1.244l.256-.512a2.25 2.25 0 0 1 2.013-1.244h3.859m-17.5 0V4.875c0-.621.504-1.125 1.125-1.125h15.25c.621 0 1.125.504 1.125 1.125v8.625m-17.5 0v4.125c0 .621.504 1.125 1.125 1.125h15.25c.621 0 1.125-.504 1.125-1.125V13.5" />
+        </svg>
+      );
+    case "megaphone":
+      return (
+        <svg className={cls} fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 1 1 0-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38a.75.75 0 0 1-1.021-.27l-.112-.192a24.425 24.425 0 0 1-1.314-2.66m2.582-1.552c3.297-.292 6.404-1.182 9.16-2.54V6.59a24.524 24.524 0 0 1-9.16-2.54m0 12.79v-12.79m0 12.79A24.554 24.554 0 0 0 12.5 15a24.346 24.346 0 0 0-2.16-.84M12.5 15v-12.79" />
         </svg>
       );
     case "user-cog":
