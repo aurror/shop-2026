@@ -59,22 +59,33 @@ export async function GET(request: NextRequest) {
       .where(whereClause);
     const total = Number(countResult[0].count);
 
-    // Sort
+    // Sort — within a category context, prepend sortOrder
+    const withSortOrder = !!category;
     switch (sort) {
       case "price_asc":
-        query = query.orderBy(asc(products.basePrice));
+        query = withSortOrder
+          ? query.orderBy(asc(products.sortOrder), asc(products.basePrice))
+          : query.orderBy(asc(products.basePrice));
         break;
       case "price_desc":
-        query = query.orderBy(desc(products.basePrice));
+        query = withSortOrder
+          ? query.orderBy(asc(products.sortOrder), desc(products.basePrice))
+          : query.orderBy(desc(products.basePrice));
         break;
       case "name_asc":
-        query = query.orderBy(asc(products.name));
+        query = withSortOrder
+          ? query.orderBy(asc(products.sortOrder), asc(products.name))
+          : query.orderBy(asc(products.name));
         break;
       case "oldest":
-        query = query.orderBy(asc(products.createdAt));
+        query = withSortOrder
+          ? query.orderBy(asc(products.sortOrder), asc(products.createdAt))
+          : query.orderBy(asc(products.createdAt));
         break;
       default:
-        query = query.orderBy(desc(products.createdAt));
+        query = withSortOrder
+          ? query.orderBy(asc(products.sortOrder), desc(products.createdAt))
+          : query.orderBy(desc(products.createdAt));
     }
 
     const items = await query.limit(limit).offset(offset);

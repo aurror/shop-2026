@@ -336,9 +336,29 @@ export default function AdminSettingsPage() {
         </p>
       </div>
 
+      {/* Mobile: scrollable tab strip */}
+      <div className="lg:hidden -mx-4 sm:-mx-6 px-4 sm:px-6 overflow-x-auto border-b border-neutral-100 mb-6">
+        <div className="flex gap-1 pb-3 min-w-max">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`whitespace-nowrap rounded-full px-3 py-1.5 text-xs font-medium transition-colors ${
+                activeTab === tab.key
+                  ? "bg-neutral-900 text-white"
+                  : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-800"
+              }`}
+            >
+              {t(tab.labelKey as any)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop: sidebar + content / Mobile: just content */}
       <div className="flex gap-6">
-        {/* Tab Sidebar */}
-        <div className="w-56 shrink-0">
+        {/* Tab Sidebar — hidden on mobile */}
+        <div className="hidden lg:block w-56 shrink-0">
           <nav className="space-y-1 rounded-xl border border-neutral-200 bg-white p-2 shadow-sm">
             {tabs.map((tab) => (
               <button

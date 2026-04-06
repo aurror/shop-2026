@@ -19,6 +19,7 @@ interface Product {
   images?: string[];
   categoryId?: string;
   categoryName?: string;
+  sortOrder?: number;
 }
 
 function slugify(s: string) {
@@ -138,6 +139,38 @@ export default function CategoriesPage() {
     setDragOverCat(null);
   }
 
+  async function moveCat(id: string, dir: -1 | 1) {
+    const sorted = [...categories].sort((a, b) => a.sortOrder - b.sortOrder);
+    const idx = sorted.findIndex(c => c.id === id);
+    const swapIdx = idx + dir;
+    if (swapIdx < 0 || swapIdx >= sorted.length) return;
+    const newOrder = sorted.map((c, i) => ({ id: c.id, sortOrder: i }));
+    const tmp = newOrder[idx].sortOrder;
+    newOrder[idx].sortOrder = newOrder[swapIdx].sortOrder;
+    newOrder[swapIdx].sortOrder = tmp;
+    await fetch("/api/admin/categories/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order: newOrder }),
+    });
+    load();
+  }
+
+  async function moveProduct(id: string, idx: number, dir: -1 | 1, arr: Product[]) {
+    const swapIdx = idx + dir;
+    if (swapIdx < 0 || swapIdx >= arr.length) return;
+    const newOrder = arr.map((p, i) => ({ id: p.id, sortOrder: i }));
+    const tmp = newOrder[idx].sortOrder;
+    newOrder[idx].sortOrder = newOrder[swapIdx].sortOrder;
+    newOrder[swapIdx].sortOrder = tmp;
+    await fetch("/api/admin/products/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order: newOrder }),
+    });
+    load();
+  }
+
   const filteredProducts = products.filter(p =>
     !search || p.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -251,6 +284,12 @@ export default function CategoriesPage() {
                         </p>
                       </div>
                       <div className="flex shrink-0 gap-1" onClick={e => e.stopPropagation()}>
+                        <button onClick={() => moveCat(cat.id, -1)} className={`rounded p-1 ${isSelected ? "hover:bg-white/20 text-white/70" : "hover:bg-neutral-100 text-neutral-400"}`} title="Nach oben">
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg>
+                        </button>
+                        <button onClick={() => moveCat(cat.id, 1)} className={`rounded p-1 ${isSelected ? "hover:bg-white/20 text-white/70" : "hover:bg-neutral-100 text-neutral-400"}`} title="Nach unten">
+                          <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                        </button>
                         <button onClick={() => openEdit(cat)} className={`rounded p-1 ${isSelected ? "hover:bg-white/20 text-white" : "hover:bg-neutral-100 text-neutral-500"}`} title="Bearbeiten">
                           <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
                         </button>
@@ -296,16 +335,48 @@ export default function CategoriesPage() {
             {selectedCat && (
               <div>
                 <h2 className="text-sm font-semibold uppercase tracking-wide text-neutral-500 mb-3">
-                  In „{categories.find(c => c.id === selectedCat)?.name}" ({inSelectedCat.length})
+                  In „{categories.find(c => c.id === selectedCat)?.name}" ({inSelectedCat.length}) — Reihenfolge per ↑↓ ändern
                 </h2>
                 {inSelectedCat.length === 0 ? (
                   <p className="text-sm text-neutral-400 py-2">Keine Produkte in dieser Kategorie</p>
                 ) : (
-                  <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 mb-6">
-                    {inSelectedCat.map(p => (
-                      <ProductCard key={p.id} product={p} onDragStart={onDragStart} onDragEnd={onDragEnd}
-                        onRemove={() => assignProduct(p.id, null)} />
-                    ))}
+                  <div className="space-y-1 mb-6">
+                    {[...inSelectedCat]
+                      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+                      .map((p, idx, arr) => (
+                        <div key={p.id} className="flex items-center gap-2 rounded-lg border border-neutral-200 bg-white p-2">
+                          <div className="flex flex-col gap-0.5">
+                            <button
+                              onClick={() => moveProduct(p.id, idx, -1, arr)}
+                              disabled={idx === 0}
+                              className="rounded p-0.5 hover:bg-neutral-100 disabled:opacity-30 text-neutral-400"
+                              title="Nach oben"
+                            >
+                              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" /></svg>
+                            </button>
+                            <button
+                              onClick={() => moveProduct(p.id, idx, 1, arr)}
+                              disabled={idx === arr.length - 1}
+                              className="rounded p-0.5 hover:bg-neutral-100 disabled:opacity-30 text-neutral-400"
+                              title="Nach unten"
+                            >
+                              <svg className="h-3 w-3" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" /></svg>
+                            </button>
+                          </div>
+                          {p.images?.[0] && (
+                            <img src={p.images[0]} alt={p.name} className="h-10 w-10 rounded object-cover shrink-0" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-medium truncate text-neutral-900">{p.name}</p>
+                          </div>
+                          <button
+                            onClick={() => assignProduct(p.id, null)}
+                            className="text-xs text-neutral-400 hover:text-red-500 shrink-0"
+                          >
+                            Entfernen
+                          </button>
+                        </div>
+                      ))}
                   </div>
                 )}
               </div>

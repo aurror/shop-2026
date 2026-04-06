@@ -113,6 +113,7 @@ export const products = schema.table(
     metaDescription: text("meta_description"),
     createdAt: timestamp("created_at", { mode: "date" }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { mode: "date" }).defaultNow().notNull(),
+    sortOrder: integer("sort_order").default(0).notNull(),
   },
   (table) => [
     index("products_category_idx").on(table.categoryId),
