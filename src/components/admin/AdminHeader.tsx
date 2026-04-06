@@ -84,6 +84,7 @@ export function AdminHeader({ unreadCount, userName, onMenuToggle, onLogout, a11
   const hasResults = allGroups.length > 0;
 
   return (
+    <>
     <header className="flex h-16 items-center justify-between border-b border-neutral-200 bg-white px-4 lg:px-6">
       {/* Left */}
       <div className="flex items-center gap-3">
@@ -96,8 +97,8 @@ export function AdminHeader({ unreadCount, userName, onMenuToggle, onLogout, a11
         <span className="hidden text-xs font-medium text-neutral-400 lg:block">Admin</span>
       </div>
 
-      {/* Search */}
-      <div ref={searchRef} className="relative mx-4 flex-1 max-w-sm">
+      {/* Search — takes all available space */}
+      <div ref={searchRef} className="relative mx-4 flex-1">
         <div className="relative">
           <svg className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
@@ -150,16 +151,16 @@ export function AdminHeader({ unreadCount, userName, onMenuToggle, onLogout, a11
         )}
       </div>
 
-      {/* Right */}
+      {/* Right — language + a11y hidden on mobile (shown in bottom bar) */}
       <div className="flex items-center gap-2">
-        {/* Language toggle */}
-        <div className="flex items-center rounded-lg border border-neutral-200 bg-neutral-50">
+        {/* Language toggle — desktop only */}
+        <div className="hidden items-center rounded-lg border border-neutral-200 bg-neutral-50 sm:flex">
           <button type="button" onClick={() => setLocale("de")} className={`rounded-l-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${locale === "de" ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-700"}`}>DE</button>
           <button type="button" onClick={() => setLocale("en")} className={`rounded-r-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${locale === "en" ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-700"}`}>EN</button>
         </div>
 
-        {/* Accessibility toggle */}
-        <button type="button" onClick={onToggleA11y} title={a11yMode ? "Barrierefreiheit deaktivieren" : "Barrierefreiheit aktivieren"} aria-pressed={a11yMode} className={`rounded-lg p-2 transition-colors ${a11yMode ? "bg-blue-600 text-white hover:bg-blue-700" : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"}`}>
+        {/* Accessibility toggle — desktop only */}
+        <button type="button" onClick={onToggleA11y} title={a11yMode ? "Barrierefreiheit deaktivieren" : "Barrierefreiheit aktivieren"} aria-pressed={a11yMode} className={`hidden rounded-lg p-2 transition-colors sm:block ${a11yMode ? "bg-blue-600 text-white hover:bg-blue-700" : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700"}`}>
           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
             <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178z" />
             <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -192,5 +193,21 @@ export function AdminHeader({ unreadCount, userName, onMenuToggle, onLogout, a11
         </div>
       </div>
     </header>
+
+    {/* Mobile bottom bar: language + accessibility */}
+    <div className="fixed bottom-0 left-0 right-0 z-40 flex items-center justify-center gap-4 border-t border-neutral-200 bg-white px-4 py-2 sm:hidden">
+      <div className="flex items-center rounded-lg border border-neutral-200 bg-neutral-50">
+        <button type="button" onClick={() => setLocale("de")} className={`rounded-l-lg px-3 py-1.5 text-xs font-medium transition-colors ${locale === "de" ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-700"}`}>DE</button>
+        <button type="button" onClick={() => setLocale("en")} className={`rounded-r-lg px-3 py-1.5 text-xs font-medium transition-colors ${locale === "en" ? "bg-neutral-900 text-white" : "text-neutral-500 hover:text-neutral-700"}`}>EN</button>
+      </div>
+      <button type="button" onClick={onToggleA11y} title={a11yMode ? "Barrierefreiheit deaktivieren" : "Barrierefreiheit aktivieren"} aria-pressed={a11yMode} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${a11yMode ? "bg-blue-600 text-white" : "border border-neutral-200 bg-neutral-50 text-neutral-600"}`}>
+        <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" aria-hidden="true">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.964-7.178z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        Barrierefreiheit
+      </button>
+    </div>
+    </>
   );
 }

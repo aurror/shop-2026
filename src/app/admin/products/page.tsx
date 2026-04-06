@@ -112,7 +112,7 @@ export default function AdminProductsPage() {
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="admin-table w-full">
+            <table className="admin-table min-w-[700px] w-full">
               <thead>
                 <tr>
                   <th className="w-36"></th>
