@@ -47,11 +47,18 @@ export async function POST() {
   try {
     const deployScript = path.join(APP_DIR, "deploy.sh");
 
-    // Spawn fully detached — survives even if Next.js restarts during build
-    const child = spawn("bash", [deployScript, "--force"], {
+    // Spawn fully detached — survives even if Next.js restarts during build.
+    // Use bash -l (login shell) so ~/.bash_profile is sourced, giving the full
+    // user environment (nvm, PATH, etc.) — same as running from a terminal.
+    const child = spawn("bash", ["-l", deployScript, "--force"], {
       detached: true,
       stdio: "ignore",
-      env: { ...process.env },
+      cwd: APP_DIR,
+      env: {
+        ...process.env,
+        HOME: process.env.HOME || `/home/${process.env.USER || "florian"}`,
+        TERM: "xterm",
+      },
     });
     child.unref();
 
