@@ -21,6 +21,14 @@ const nextConfig: NextConfig = {
   output: "standalone",
   allowedDevOrigins: ["192.168.178.40"],
   serverExternalPackages: ["pdfkit", "fontkit", "linebreak", "png-js"],
+  async rewrites() {
+    return [
+      {
+        source: "/uploads/:path*",
+        destination: "/api/uploads/:path*",
+      },
+    ];
+  },
   async headers() {
     return [
       {

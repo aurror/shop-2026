@@ -273,6 +273,7 @@ export function ProductDetail({ product }: { product: ProductData }) {
                   sizes="(max-width: 1024px) 100vw, 50vw"
                   className="object-cover"
                   priority
+                  unoptimized
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center">
@@ -313,6 +314,7 @@ export function ProductDetail({ product }: { product: ProductData }) {
                       fill
                       sizes="64px"
                       className="object-cover"
+                      unoptimized
                     />
                   </button>
                 ))}

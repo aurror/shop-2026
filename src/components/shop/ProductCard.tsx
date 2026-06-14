@@ -123,6 +123,7 @@ export function ProductCard({ product }: ProductCardProps) {
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
               className="object-cover transition-transform duration-500 group-hover:scale-105"
+              unoptimized
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center bg-neutral-100">
